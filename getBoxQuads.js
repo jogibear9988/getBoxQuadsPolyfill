@@ -15,7 +15,7 @@ export function addPolyfill() {
 * @returns {DOMQuad}
 */
 export function convertQuadFromNode(element, quad, from, options) {
-    return null;
+    throw Error("not implemented");
 }
 
 /**
@@ -26,7 +26,7 @@ export function convertQuadFromNode(element, quad, from, options) {
 * @returns {DOMQuad}
 */
 export function convertRectFromNode(element, rect, from, options) {
-    return null;
+    throw Error("not implemented");
 }
 
 /**
@@ -37,7 +37,7 @@ export function convertRectFromNode(element, rect, from, options) {
 * @returns {DOMPoint}
 */
 export function convertPointFromNode(element, point, from, options) {
-    return null;
+    throw Error("not implemented");
 }
 
 /**
@@ -112,7 +112,16 @@ function getElementOffsetsInContainer(element) {
     if (element instanceof HTMLElement) {
         return new DOMPoint(element.offsetLeft, element.offsetTop);
     } else {
-        //todo: this will not work correctly with transformed SVGs or MathML Elements 
+        if (element instanceof SVGGraphicsElement && !(element instanceof SVGSVGElement)) {
+            const bb = element.getBBox();
+            return new DOMPoint(bb.x, bb.y);
+        }
+
+        const cs = getComputedStyle(element);
+        if (cs.position === 'absolute') {
+            return new DOMPoint(parseFloat(cs.left), parseFloat(cs.top));
+        }
+
         const r1 = element.getBoundingClientRect();
         const r2 = element.parentElement.getBoundingClientRect();
         return new DOMPoint(r1.x - r2.x, r1.y - r2.y);

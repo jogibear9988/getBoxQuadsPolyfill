@@ -24,7 +24,10 @@
         </select>
         <div>
             The Overlays in the SVG are calculated via getBoxQuads and then drawn into an overlay layer<br><br>
-            See the last SVG Element has a wrong overlay. This only works correctly in Firefox, when you enable the native getBoxQuads API.
+            See the last SVG Element has a wrong overlay. This only works correctly in Firefox, when you enable the
+            native getBoxQuads API. It's cause we display in a grid, so I don't know the offset in the control, and it
+            could
+            not be calculated via getBoundingClientRect cause of the rotation.
         </div>
     </div>
     <div id="root" style="position: relative; left: 50px; top: 100px;">
@@ -56,8 +59,38 @@
 
             <svg width="300" height="130" xmlns="http://www.w3.org/2000/svg"
                 style="position: absolute; left: 50px; top: 940px; rotate: 45deg;">
-                <rect width=" 200" height="100" x="10" y="10" rx="20" ry="20" fill="blue" />
+                <rect width=" 200" height="100" x="30" y="10" rx="20" ry="20" fill="blue" />
             </svg>
+
+            <div
+            style="position: absolute; left: 450px; top: 750px; width: 400px; height: 50px; rotate: 45deg; background:lightgray; display: grid; grid-template-columns: 1fr 1fr;">
+            <button>MathML</button>
+            <math xmlns="http://www.w3.org/1998/Math/MathML">
+                <mn>4</mn>
+                <mi>x</mi>
+                <mo>+</mo>
+                <mn>4</mn>
+                <mo>=</mo>
+                <mo>(</mo>
+                <mn>2</mn>
+                <mo>+</mo>
+                <mn>2</mn>
+                <mo>)</mo>
+                <mi>x</mi>
+                <mo>+</mo>
+                <mn>2</mn>
+                <mo>&middot;</mo>
+                <mn>2</mn>
+            </math>
+            </div>
+
+            <div
+                style="position: absolute; left: 50px; top: 1240px; width: 400px; height: 100px; rotate: 45deg; background:yellow; display: grid; grid-template-columns: 1fr 1fr;">
+                <button>Btn</button>
+                <svg width="300" height="130" xmlns="http://www.w3.org/2000/svg">
+                    <rect width=" 200" height="100" x="30" y="10" rx="20" ry="20" fill="blue" />
+                </svg>
+            </div>
         </div>
         <svg id="overlay" style="position: absolute; left: 0px; top: 0px;"></svg>
     </div>
