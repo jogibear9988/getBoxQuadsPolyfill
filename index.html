@@ -9,6 +9,10 @@
             stroke-dasharray: 2;
             overflow: visible;
         }
+
+        svg rect {
+            fill: blue;
+        }
     </style>
 </head>
 
@@ -54,37 +58,37 @@
 
             <svg width="300" height="130" xmlns="http://www.w3.org/2000/svg"
                 style="position: absolute; left: 50px; top: 540px;">
-                <rect width=" 200" height="100" x="10" y="10" rx="20" ry="20" fill="blue" />
+                <rect width="200" height="100" x="10" y="10" rx="20" ry="20" fill="blue" />
             </svg>
 
             <svg width="300" height="130" xmlns="http://www.w3.org/2000/svg"
                 style="position: absolute; left: 50px; top: 940px; rotate: 45deg;">
-                <rect width=" 200" height="100" x="30" y="10" rx="20" ry="20" fill="blue" />
+                <rect width="200" height="100" x="30" y="10" rx="20" ry="20" fill="blue" />
             </svg>
 
             <div
-            style="position: absolute; left: 450px; top: 750px; width: 400px; height: 50px; rotate: 45deg; background:lightgray; display: grid; grid-template-columns: 1fr 1fr;">
-            <button>MathML</button>
-            <math xmlns="http://www.w3.org/1998/Math/MathML">
-                <msup>
-                    <mrow>
-                        <mo>(</mo>
-                        <mfrac>
-                            <mrow>
-                                <mn>1</mn>
-                                <mo>+</mo>
-                                <mfrac>
-                                    <mn>2</mn>
-                                    <mn>3</mn>
-                                </mfrac>
-                            </mrow>
-                            <mn>4</mn>
-                        </mfrac>
-                        <mo>)</mo>
-                    </mrow>
-                    <mn>5</mn>
-                </msup>
-            </math>
+                style="position: absolute; left: 450px; top: 750px; width: 400px; height: 50px; rotate: 45deg; background:lightgray; display: grid; grid-template-columns: 1fr 1fr;">
+                <button>MathML</button>
+                <math xmlns="http://www.w3.org/1998/Math/MathML">
+                    <msup>
+                        <mrow>
+                            <mo>(</mo>
+                            <mfrac>
+                                <mrow>
+                                    <mn>1</mn>
+                                    <mo>+</mo>
+                                    <mfrac>
+                                        <mn>2</mn>
+                                        <mn>3</mn>
+                                    </mfrac>
+                                </mrow>
+                                <mn>4</mn>
+                            </mfrac>
+                            <mo>)</mo>
+                        </mrow>
+                        <mn>5</mn>
+                    </msup>
+                </math>
             </div>
 
             <div
@@ -102,18 +106,32 @@
     import { addPolyfill } from './getBoxQuads.js';
     addPolyfill();
 
+    const overlay = document.getElementById('overlay');
+    const root = document.getElementById('root');
     /** @type {HTMLSelectElement } */
     const type = document.getElementById('type');
     type.onchange = () => {
         draw();
     }
 
+    root.onclick = (e) => {
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        const p = root.convertPointFromNode(new DOMPoint(e.x, e.y), e.target);
+        const bcr = root.getBoundingClientRect();
+        rect.setAttribute("x", p.x - 5 - bcr.left);
+        rect.setAttribute("y", p.y - 5 - bcr.top);
+        rect.setAttribute("width", 10);
+        rect.setAttribute("height", 10);
+        overlay.appendChild(rect);
+        setTimeout(() => {
+            rect.remove()
+        }, 500);
+    }
+
     function draw() {
-        const overlay = document.getElementById('overlay');
         overlay.innerHTML = "";
         if (type.value === 'none')
             return;
-        const root = document.getElementById('root');
         const ct = document.getElementById('container');
         const all = ct.querySelectorAll('*');
         for (let e of all) {

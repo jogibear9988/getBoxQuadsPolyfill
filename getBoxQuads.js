@@ -5,6 +5,27 @@ export function addPolyfill() {
             return getBoxQuads(this, options)
         }
     }
+
+    if (!Element.prototype.convertQuadFromNode) {
+        //@ts-ignore
+        Element.prototype.convertQuadFromNode = function (quad, from, options) {
+            return convertQuadFromNode(this, quad, from, options)
+        }
+    }
+
+    if (!Element.prototype.convertRectFromNode) {
+        //@ts-ignore
+        Element.prototype.convertRectFromNode = function (rect, from, options) {
+            return convertRectFromNode(this, rect, from, options)
+        }
+    }
+
+    if (!Element.prototype.convertPointFromNode) {
+        //@ts-ignore
+        Element.prototype.convertPointFromNode = function (point, from, options) {
+            return convertPointFromNode(this, point, from, options)
+        }
+    }
 }
 
 /**
@@ -15,7 +36,10 @@ export function addPolyfill() {
 * @returns {DOMQuad}
 */
 export function convertQuadFromNode(element, quad, from, options) {
-    throw Error("not implemented");
+    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body);
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(element, document.body).inverse();
+    return new DOMQuad(m2.transformPoint(m1.transformPoint(quad.p1)), m2.transformPoint(m1.transformPoint(quad.p2)), m2.transformPoint(m1.transformPoint(quad.p3)), m2.transformPoint(m1.transformPoint(quad.p4)));
+
 }
 
 /**
@@ -26,7 +50,9 @@ export function convertQuadFromNode(element, quad, from, options) {
 * @returns {DOMQuad}
 */
 export function convertRectFromNode(element, rect, from, options) {
-    throw Error("not implemented");
+    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body);
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(element, document.body).inverse();
+    return new DOMQuad(m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x, rect.y))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x + rect.width, rect.y))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x + rect.width, rect.y + rect.height))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x, rect.y + rect.height))));
 }
 
 /**
@@ -37,7 +63,9 @@ export function convertRectFromNode(element, rect, from, options) {
 * @returns {DOMPoint}
 */
 export function convertPointFromNode(element, point, from, options) {
-    throw Error("not implemented");
+    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body);
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(element, document.body).inverse();
+    return m2.transformPoint(m1.transformPoint(point));
 }
 
 /**
