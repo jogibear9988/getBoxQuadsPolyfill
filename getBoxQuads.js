@@ -1,7 +1,9 @@
 export function addPolyfill() {
-    //@ts-ignore
-    Element.prototype.getBoxQuads = function (options) {
-        return getBoxQuads(this, options)
+    if (!Element.prototype.getBoxQuads) {
+        //@ts-ignore
+        Element.prototype.getBoxQuads = function (options) {
+            return getBoxQuads(this, options)
+        }
     }
 }
 
@@ -43,7 +45,7 @@ export function getBoxQuads(element, options) {
         let pTransformed = p.matrixTransform(originalElementAndAllParentsMultipliedMatrix);
         points[i] = new DOMPoint(pTransformed.x, pTransformed.y);
     }
-    return [new DOMQuad(points[0], points[1], points[2], points[3])];
+    return [new DOMQuad(points[0], points[1], points[3], points[2])];
 }
 
 /**
