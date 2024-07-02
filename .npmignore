@@ -1,0 +1,5 @@
+node_modules/
+tsconfig.json
+tsconfig.tsbuildinfo
+index.html
+package-lock.json

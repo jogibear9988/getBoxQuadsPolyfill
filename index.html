@@ -1,0 +1,69 @@
+<html>
+
+<head>
+    <title>getBoxQuads Test</title>
+    <style>
+        svg {
+            fill: rgba(255, 166, 0, 0.205);
+            stroke: orange;
+            stroke-dasharray: 2;
+            overflow: visible;
+        }
+    </style>
+</head>
+
+<body>
+    <div style="display: flex; flex-direction: column;">
+        Options:
+        <select id="type" style="width: 300px;">
+            <option selected>margin</option>
+            <option>border</option>
+            <option>padding</option>
+            <option>content</option>
+            <option>none</option>
+        </select>
+    </div>
+    <div id="root" style="position: relative; left: 50px; top: 100px;">
+        <div id="container" style="position: absolute; left: 0px; top: 0px;">
+            <button>Test</button>
+            <button style="position: absolute; left: 350px; top: 60px; rotate: 45deg;">Test Rotated</button>
+            <button
+                style="position: absolute; left: 350px; top: 360px; rotate: 70deg; width: 200px; height: 100px; padding: 40px; margin: 20px;">Test
+                Rotated</button>
+            <button style="position: absolute; left: 50px; top: 140px; width: 200px; height: 100px; padding: 20px;">Test
+                Padding</button>
+            <button
+                style="position: absolute; left: 50px; top: 260px; width: 200px; height: 100px; padding: 20px; border: 15px green solid;">Test
+                Padding 6 Border</button>
+        </div>
+        <svg id="overlay" style="position: absolute; left: 0px; top: 0px;"></svg>
+    </div>
+</body>
+<script type="module">
+    import { getBoxQuads } from './getBoxQuads.js';
+    /** @type {HTMLSelectElement } */
+    const type = document.getElementById('type');
+    type.onchange = () => {
+        draw();
+    }
+
+    function draw() {
+        const overlay = document.getElementById('overlay');
+        overlay.innerHTML = "";
+        if (type.value === 'none')
+            return;
+        const root = document.getElementById('root');
+        const ct = document.getElementById('container');
+        const all = ct.querySelectorAll('*');
+        for (let e of all) {
+            const p = getBoxQuads(e, type.value, root);
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            const d = "M" + [p[0], p[1], p[3], p[2]].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+            path.setAttribute("d", d);
+            overlay.appendChild(path);
+        }
+    }
+    draw();
+</script>
+
+</html>

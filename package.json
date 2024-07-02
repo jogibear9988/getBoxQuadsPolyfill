@@ -1,0 +1,17 @@
+{
+  "name": "get-box-quads-polyfill",
+  "version": "1.0.0",
+  "description": "a polyfill for the getBoxQuads API",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "web-dev-server --open"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@web/dev-server": "^0.4.4",
+    "typescript": "^5.5.3"
+  }
+}
