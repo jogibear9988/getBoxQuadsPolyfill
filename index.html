@@ -22,6 +22,9 @@
             <option>content</option>
             <option>none</option>
         </select>
+        <div>
+            The Overlays in the SVG are calculated via getBoxQuads and then drawn into an overlay layer
+        </div>
     </div>
     <div id="root" style="position: relative; left: 50px; top: 100px;">
         <div id="container" style="position: absolute; left: 0px; top: 0px;">
@@ -35,6 +38,12 @@
             <button
                 style="position: absolute; left: 50px; top: 260px; width: 200px; height: 100px; padding: 20px; border: 15px green solid;">Test
                 Padding 6 Border</button>
+
+            <div style="position: absolute; left: 500px; top: 140px; width: 200px; height: 100px; background-color: lightgreen; rotate: -30deg;">
+                <div style="position: absolute; left: 20px; top: 40px; width: 160px; height: 80px; background-color: lightpink; rotate: -30deg; transform: skewX(30deg) skewY(10deg) scaleY(1.4);">
+                    <button style="padding: 10px; margin: 10px;">Inside of 2 Transformed divs</button>
+                </div>
+            </div>
         </div>
         <svg id="overlay" style="position: absolute; left: 0px; top: 0px;"></svg>
     </div>
