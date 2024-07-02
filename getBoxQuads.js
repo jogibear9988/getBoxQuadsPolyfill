@@ -1,29 +1,35 @@
+export function addPolyfill() {
+    //@ts-ignore
+    Element.prototype.getBoxQuads = function (options) {
+        return getBoxQuads(this, options)
+    }
+}
+
 /**
-* @param {HTMLElement} element
-* @param {'margin'|'border'|'padding'|'content'} box
-* @param {HTMLElement} relativeTo
-* @returns {[DOMPoint, DOMPoint, DOMPoint, DOMPoint]}
+* @param {Element} element
+* @param {{box: 'margin'|'border'|'padding'|'content', relativeTo: Element}=} options
+* @returns {DOMQuad[]}
 */
-export function getBoxQuads(element, box, relativeTo) {
+export function getBoxQuads(element, options) {
 
     let { width, height } = getElementSize(element);
     /** @type {DOMMatrix} */
-    let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(element, relativeTo);
+    let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(element, options?.relativeTo ?? document.body);
 
     let arr = [{ x: 0, y: 0 }, { x: width, y: 0 }, { x: 0, y: height }, { x: width, y: height }];
     /** @type { [DOMPoint, DOMPoint, DOMPoint, DOMPoint] } */
     //@ts-ignore
-    const transformedCornerPoints = Array(4);
+    const points = Array(4);
 
     /** @type {{x: number, y:number}[] } */
     let offset = null;
-    if (box === 'margin') {
+    if (options?.box === 'margin') {
         const cs = getComputedStyle(element);
         offset = [{ x: parseFloat(cs.marginLeft), y: parseFloat(cs.marginTop) }, { x: -parseFloat(cs.marginRight), y: parseFloat(cs.marginTop) }, { x: parseFloat(cs.marginLeft), y: -parseFloat(cs.marginBottom) }, { x: -parseFloat(cs.marginRight), y: -parseFloat(cs.marginBottom) }];
-    } else if (box === 'padding') {
+    } else if (options?.box === 'padding') {
         const cs = getComputedStyle(element);
         offset = [{ x: -parseFloat(cs.borderLeftWidth), y: -parseFloat(cs.borderTopWidth) }, { x: parseFloat(cs.borderRightWidth), y: -parseFloat(cs.borderTopWidth) }, { x: -parseFloat(cs.borderLeftWidth), y: parseFloat(cs.borderBottomWidth) }, { x: parseFloat(cs.borderRightWidth), y: parseFloat(cs.borderBottomWidth) }];
-    } else if (box === 'content') {
+    } else if (options?.box === 'content') {
         const cs = getComputedStyle(element);
         offset = [{ x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }];
     }
@@ -35,9 +41,9 @@ export function getBoxQuads(element, box, relativeTo) {
             p = new DOMPoint(arr[i].x - offset[i].x, arr[i].y - offset[i].y);
 
         let pTransformed = p.matrixTransform(originalElementAndAllParentsMultipliedMatrix);
-        transformedCornerPoints[i] = new DOMPoint(pTransformed.x, pTransformed.y);
+        points[i] = new DOMPoint(pTransformed.x, pTransformed.y);
     }
-    return transformedCornerPoints;
+    return [new DOMQuad(points[0], points[1], points[2], points[3])];
 }
 
 /**
