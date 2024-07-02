@@ -23,7 +23,8 @@
             <option>none</option>
         </select>
         <div>
-            The Overlays in the SVG are calculated via getBoxQuads and then drawn into an overlay layer
+            The Overlays in the SVG are calculated via getBoxQuads and then drawn into an overlay layer<br><br>
+            See the last SVG Element has a wrong overlay. This only works correctly in Firefox, when you enable the native getBoxQuads API.
         </div>
     </div>
     <div id="root" style="position: relative; left: 50px; top: 100px;">
@@ -47,6 +48,16 @@
                         2 Transformed divs</button>
                 </div>
             </div>
+
+            <svg width="300" height="130" xmlns="http://www.w3.org/2000/svg"
+                style="position: absolute; left: 50px; top: 540px;">
+                <rect width=" 200" height="100" x="10" y="10" rx="20" ry="20" fill="blue" />
+            </svg>
+
+            <svg width="300" height="130" xmlns="http://www.w3.org/2000/svg"
+                style="position: absolute; left: 50px; top: 940px; rotate: 45deg;">
+                <rect width=" 200" height="100" x="10" y="10" rx="20" ry="20" fill="blue" />
+            </svg>
         </div>
         <svg id="overlay" style="position: absolute; left: 0px; top: 0px;"></svg>
     </div>

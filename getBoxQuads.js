@@ -9,6 +9,39 @@ export function addPolyfill() {
 
 /**
 * @param {Element} element
+* @param {DOMQuadInit} quad
+* @param {Element} from
+* @param {{fromBox: 'margin'|'border'|'padding'|'content',toBox: 'margin'|'border'|'padding'|'content'}=} options
+* @returns {DOMQuad}
+*/
+export function convertQuadFromNode(element, quad, from, options) {
+    return null;
+}
+
+/**
+* @param {Element} element
+* @param {DOMRectReadOnly} rect
+* @param {Element} from
+* @param {{fromBox: 'margin'|'border'|'padding'|'content',toBox: 'margin'|'border'|'padding'|'content'}=} options
+* @returns {DOMQuad}
+*/
+export function convertRectFromNode(element, rect, from, options) {
+    return null;
+}
+
+/**
+* @param {Element} element
+* @param {DOMPointInit} point
+* @param {Element} from
+* @param {{fromBox: 'margin'|'border'|'padding'|'content',toBox: 'margin'|'border'|'padding'|'content'}=} options
+* @returns {DOMPoint}
+*/
+export function convertPointFromNode(element, point, from, options) {
+    return null;
+}
+
+/**
+* @param {Element} element
 * @param {{box: 'margin'|'border'|'padding'|'content', relativeTo: Element}=} options
 * @returns {DOMQuad[]}
 */
