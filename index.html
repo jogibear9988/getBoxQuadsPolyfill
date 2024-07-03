@@ -19,7 +19,9 @@
 <body>
     <template id="wc-test-template">
         <div id="container" style="width: 100%; height: 100%; position: absolute">
-            <div style="position: absolute; left: 50px; top: 5px; width: 100px; height: 50px; rotate: -45deg; background: lightpink;">WC-test</div>
+            <div
+                style="position: absolute; left: 50px; top: 5px; width: 100px; height: 50px; rotate: -45deg; background: lightpink;">
+                WC-test</div>
         </div>
     </template>
 
@@ -145,7 +147,7 @@
         if (e.target == overlay)
             return;
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        const p = e.target.convertPointFromNode(new DOMPoint(e.x, e.y), root);
+        const p = e.target.convertPointFromNode(new DOMPoint(e.x, e.y), root, { fromBox: 'border', toBox: type.value });
         const bcr = root.getBoundingClientRect();
         rect.setAttribute("x", p.x - 5 - bcr.left);
         rect.setAttribute("y", p.y - 5 - bcr.top);

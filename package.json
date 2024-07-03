@@ -1,6 +1,6 @@
 {
   "name": "get-box-quads-polyfill",
-  "version": "2.0.2",
+  "version": "3.0.0",
   "description": "a polyfill for the getBoxQuads API",
   "main": "index.js",
   "type": "module",

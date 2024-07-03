@@ -38,7 +38,14 @@ export function addPolyfill() {
 export function convertQuadFromNode(element, quad, from, options) {
     const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body);
     const m2 = getResultingTransformationBetweenElementAndAllAncestors(element, document.body).inverse();
-    return new DOMQuad(m2.transformPoint(m1.transformPoint(quad.p1)), m2.transformPoint(m1.transformPoint(quad.p2)), m2.transformPoint(m1.transformPoint(quad.p3)), m2.transformPoint(m1.transformPoint(quad.p4)));
+    if (options?.fromBox && options?.fromBox !== 'border') {
+        quad = new DOMQuad(transformPointBox(quad.p1, options.fromBox, getComputedStyle(element), -1), transformPointBox(quad.p2, options.fromBox, getComputedStyle(element), -1), transformPointBox(quad.p3, options.fromBox, getComputedStyle(element), -1), transformPointBox(quad.p4, options.fromBox, getComputedStyle(element), -1))
+    }
+    let res = new DOMQuad(m2.transformPoint(m1.transformPoint(quad.p1)), m2.transformPoint(m1.transformPoint(quad.p2)), m2.transformPoint(m1.transformPoint(quad.p3)), m2.transformPoint(m1.transformPoint(quad.p4)));
+    if (options?.toBox && options?.toBox !== 'border') {
+        res = new DOMQuad(transformPointBox(res.p1, options.toBox, getComputedStyle(element), -1), transformPointBox(res.p2, options.toBox, getComputedStyle(element), -1), transformPointBox(res.p3, options.toBox, getComputedStyle(element), -1), transformPointBox(res.p4, options.toBox, getComputedStyle(element), -1))
+    }
+    return res;
 
 }
 
@@ -52,7 +59,15 @@ export function convertQuadFromNode(element, quad, from, options) {
 export function convertRectFromNode(element, rect, from, options) {
     const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body);
     const m2 = getResultingTransformationBetweenElementAndAllAncestors(element, document.body).inverse();
-    return new DOMQuad(m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x, rect.y))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x + rect.width, rect.y))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x + rect.width, rect.y + rect.height))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x, rect.y + rect.height))));
+    if (options?.fromBox && options?.fromBox !== 'border') {
+        const p = transformPointBox(new DOMPoint(rect.x, rect.y), options.fromBox, getComputedStyle(from), 1);
+        rect = new DOMRect(p.x, p.y, rect.width, rect.height);
+    }
+    let res = new DOMQuad(m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x, rect.y))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x + rect.width, rect.y))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x + rect.width, rect.y + rect.height))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x, rect.y + rect.height))));
+    if (options?.toBox && options?.toBox !== 'border') {
+        res = new DOMQuad(transformPointBox(res.p1, options.toBox, getComputedStyle(element), -1), transformPointBox(res.p2, options.toBox, getComputedStyle(element), -1), transformPointBox(res.p3, options.toBox, getComputedStyle(element), -1), transformPointBox(res.p4, options.toBox, getComputedStyle(element), -1))
+    }
+    return res;
 }
 
 /**
@@ -65,7 +80,33 @@ export function convertRectFromNode(element, rect, from, options) {
 export function convertPointFromNode(element, point, from, options) {
     const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body);
     const m2 = getResultingTransformationBetweenElementAndAllAncestors(element, document.body).inverse();
-    return m2.transformPoint(m1.transformPoint(point));
+    if (options?.fromBox && options?.fromBox !== 'border') {
+        point = transformPointBox(point, options.fromBox, getComputedStyle(from), 1);
+    }
+    let res = m2.transformPoint(m1.transformPoint(point));
+    if (options?.toBox && options?.toBox !== 'border') {
+        res = transformPointBox(res, options.toBox, getComputedStyle(element), -1);
+    }
+    return res;
+}
+
+/**
+* @param {DOMPointInit} point
+* @param {'margin'|'border'|'padding'|'content'} box
+* @param {CSSStyleDeclaration} style
+* @param {number} operator
+* @returns {DOMPoint}
+*/
+function transformPointBox(point, box, style, operator) {
+    if (box === 'margin') {
+        return new DOMPoint(point.x + operator * parseFloat(style.marginLeft), point.y + operator * parseFloat(style.marginTop));
+    } else if (box === 'padding') {
+        return new DOMPoint(point.x + operator * parseFloat(style.borderLeftWidth), point.y + operator * parseFloat(style.borderTopWidth));
+    } else if (box === 'content') {
+        return new DOMPoint(point.x + operator * (parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft)), point.y + operator * (parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop)));
+    }
+    //@ts-ignore
+    return point;
 }
 
 /**
