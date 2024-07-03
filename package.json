@@ -1,9 +1,17 @@
 {
   "name": "get-box-quads-polyfill",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "a polyfill for the getBoxQuads API",
   "main": "index.js",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jogibear9988/getBoxQuadsPolyfill.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jogibear9988/getBoxQuadsPolyfill/issues"
+  },
+  "homepage": "https://github.com/jogibear9988/getBoxQuadsPolyfill#readme",
   "scripts": {
     "build": "tsc",
     "start": "web-dev-server --open"
