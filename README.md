@@ -17,6 +17,7 @@ Limited support for SVG and MathML, cause of missing offsetLeft & offsetTop-Prop
 
 FF has a native implementation impl:
 https://bugzilla.mozilla.org/show_bug.cgi?id=918189
+https://bugzilla.mozilla.org/show_bug.cgi?id=1107559
 
 more info about api:
 https://lists.w3.org/Archives/Public/www-style/2013Aug/0609.html
