@@ -10,6 +10,8 @@ following API's are supported:
     convertPointFromNode(point: DOMPoint, from: Element, options?: { fromBox: 'margin' | 'border' | 'padding' | 'content', toBox: 'margin' | 'border' | 'padding' | 'content' })
     getBoxQuads(element: Element, options?: { box: 'margin' | 'border' | 'padding' | 'content', relativeTo: Element })
 
+# issues
+the convert... API's at the moment do not respect the values inside of the options.
 
 # info
 gets the 4 transformed corner points of an Elment in DOM. Works only for HTMLElements. 
