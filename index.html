@@ -17,6 +17,12 @@
 </head>
 
 <body>
+    <template id="wc-test-template">
+        <div id="container" style="width: 100%; height: 100%; position: absolute">
+            <div style="position: absolute; left: 50px; top: 5px; width: 100px; height: 50px; rotate: -45deg; background: lightpink;">WC-test</div>
+        </div>
+    </template>
+
     <div style="display: flex; flex-direction: column;">
         Options:
         <select id="type" style="width: 300px;">
@@ -34,9 +40,11 @@
             not be calculated via getBoundingClientRect cause of the rotation.
         </div>
     </div>
-    <div id="root" style="position: relative; left: 50px; top: 100px; background-color: #b0c4de40; width: 100%; height: 200%;">
+    <div id="root"
+        style="position: relative; left: 50px; top: 100px; background-color: #b0c4de40; width: 100%; height: 200%;">
         <div id="container" style="position: absolute; left: 0px; top: 0px; opacity: 0.4;">
             <button>Test</button>
+            <wc-test style="position: absolute; left: 150px;"></wc-test>
             <button style="position: absolute; left: 350px; top: 60px; rotate: 45deg;">Test Rotated</button>
             <button
                 style="position: absolute; left: 350px; top: 360px; rotate: 70deg; width: 200px; height: 100px; padding: 40px; margin: 20px;">Test
@@ -106,6 +114,25 @@
     import { addPolyfill } from './getBoxQuads.js';
     addPolyfill();
 
+
+    //A webcomponent for test of shadowdom support
+    let wcContent = null;
+    customElements.define(
+        "wc-test",
+        class WcTest extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                const template = (
+                    document.getElementById("wc-test-template")
+                );
+                wcContent = template.content.cloneNode(true).children[0];
+                shadowRoot.appendChild(wcContent);
+            }
+        }
+    );
+    // End of webcomponent
+
     const overlay = document.getElementById('overlay');
     const root = document.getElementById('root');
     /** @type {HTMLSelectElement } */
@@ -135,7 +162,8 @@
         if (type.value === 'none')
             return;
         const ct = document.getElementById('container');
-        const all = ct.querySelectorAll('*');
+        const all = Array.from(ct.querySelectorAll('*'));
+        all.push(wcContent.children[0]);
         for (let e of all) {
             const p = e.getBoxQuads({ box: type.value, relativeTo: root })[0];
             const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
