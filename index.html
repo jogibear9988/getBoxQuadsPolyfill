@@ -151,8 +151,8 @@
 
         if (window.webkitConvertPointFromNodeToPage) {
             let wp = new WebKitPoint(e.x, e.y);
-            let p2 = webkitConvertPointFromNodeToPage(e.target, wp);
-            let p3 = webkitConvertPointFromPageToNode(root, p2);
+            let p2 = webkitConvertPointFromNodeToPage(root, wp);
+            let p3 = webkitConvertPointFromPageToNode(e.target, p2);
             console.log("conv point", wp, p, p3);
         }
 
