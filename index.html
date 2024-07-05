@@ -148,6 +148,14 @@
             return;
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
         const p = e.target.convertPointFromNode(new DOMPoint(e.x, e.y), root, { fromBox: 'border', toBox: type.value });
+
+        if (window.webkitConvertPointFromNodeToPage) {
+            let wp = new WebKitPoint(e.x, e.y);
+            let p2 = webkitConvertPointFromNodeToPage(e.target, wp);
+            let p3 = convertPointFromPageToNode(root, p2);
+            console.log("conv point", wp, p, p3);
+        }
+        
         const bcr = root.getBoundingClientRect();
         rect.setAttribute("x", p.x - 5 - bcr.left);
         rect.setAttribute("y", p.y - 5 - bcr.top);
