@@ -105,7 +105,7 @@
                 style="position: absolute; left: 50px; top: 1240px; width: 400px; height: 100px; rotate: 45deg; background:yellow; display: grid; grid-template-columns: 1fr 1fr;">
                 <button>Btn</button>
                 <svg width="300" height="130" xmlns="http://www.w3.org/2000/svg">
-                    <rect width=" 200" height="100" x="30" y="10" rx="20" ry="20" fill="blue" />
+                    <rect width="200" height="100" x="30" y="10" rx="20" ry="20" fill="blue" />
                 </svg>
             </div>
         </div>
@@ -152,10 +152,10 @@
         if (window.webkitConvertPointFromNodeToPage) {
             let wp = new WebKitPoint(e.x, e.y);
             let p2 = webkitConvertPointFromNodeToPage(e.target, wp);
-            let p3 = convertPointFromPageToNode(root, p2);
+            let p3 = webkitConvertPointFromPageToNode(root, p2);
             console.log("conv point", wp, p, p3);
         }
-        
+
         const bcr = root.getBoundingClientRect();
         rect.setAttribute("x", p.x - 5 - bcr.left);
         rect.setAttribute("y", p.y - 5 - bcr.top);
