@@ -111,7 +111,7 @@ function transformPointBox(point, box, style, operator) {
 
 /**
 * @param {Element} element
-* @param {{box: 'margin'|'border'|'padding'|'content', relativeTo: Element}=} options
+* @param {{box: 'margin'|'border'|'padding'|'content', relativeTo: Element, offset: DOMQuad}=} options
 * @returns {DOMQuad[]}
 */
 export function getBoxQuads(element, options) {
@@ -126,23 +126,36 @@ export function getBoxQuads(element, options) {
     const points = Array(4);
 
     /** @type {{x: number, y:number}[] } */
-    let offset = null;
+    let o = null;
     if (options?.box === 'margin') {
         const cs = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
-        offset = [{ x: parseFloat(cs.marginLeft), y: parseFloat(cs.marginTop) }, { x: -parseFloat(cs.marginRight), y: parseFloat(cs.marginTop) }, { x: parseFloat(cs.marginLeft), y: -parseFloat(cs.marginBottom) }, { x: -parseFloat(cs.marginRight), y: -parseFloat(cs.marginBottom) }];
+        o = [{ x: parseFloat(cs.marginLeft), y: parseFloat(cs.marginTop) }, { x: -parseFloat(cs.marginRight), y: parseFloat(cs.marginTop) }, { x: parseFloat(cs.marginLeft), y: -parseFloat(cs.marginBottom) }, { x: -parseFloat(cs.marginRight), y: -parseFloat(cs.marginBottom) }];
     } else if (options?.box === 'padding') {
         const cs = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
-        offset = [{ x: -parseFloat(cs.borderLeftWidth), y: -parseFloat(cs.borderTopWidth) }, { x: parseFloat(cs.borderRightWidth), y: -parseFloat(cs.borderTopWidth) }, { x: -parseFloat(cs.borderLeftWidth), y: parseFloat(cs.borderBottomWidth) }, { x: parseFloat(cs.borderRightWidth), y: parseFloat(cs.borderBottomWidth) }];
+        o = [{ x: -parseFloat(cs.borderLeftWidth), y: -parseFloat(cs.borderTopWidth) }, { x: parseFloat(cs.borderRightWidth), y: -parseFloat(cs.borderTopWidth) }, { x: -parseFloat(cs.borderLeftWidth), y: parseFloat(cs.borderBottomWidth) }, { x: parseFloat(cs.borderRightWidth), y: parseFloat(cs.borderBottomWidth) }];
     } else if (options?.box === 'content') {
         const cs = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
-        offset = [{ x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }];
+        o = [{ x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }];
+    }
+    if (options?.offset) {
+        if (!o)
+            o = [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }];
+        o[0].x = o[0].x + options.offset.p1.x;
+        o[0].y = o[0].y + options.offset.p1.y;
+        o[1].x = o[1].x + options.offset.p2.x;
+        o[1].y = o[1].y + options.offset.p2.y;
+        o[2].x = o[2].x + options.offset.p3.x;
+        o[2].y = o[2].y + options.offset.p3.y;
+        o[3].x = o[3].x + options.offset.p4.x;
+        o[3].y = o[3].y + options.offset.p4.y;
     }
     for (let i = 0; i < 4; i++) {
+        /** @type { DOMPoint } */
         let p;
-        if (!offset)
+        if (!o)
             p = new DOMPoint(arr[i].x, arr[i].y);
         else
-            p = new DOMPoint(arr[i].x - offset[i].x, arr[i].y - offset[i].y);
+            p = new DOMPoint(arr[i].x - o[i].x, arr[i].y - o[i].y);
 
         let pTransformed = p.matrixTransform(originalElementAndAllParentsMultipliedMatrix);
         points[i] = new DOMPoint(pTransformed.x, pTransformed.y);
