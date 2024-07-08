@@ -99,7 +99,7 @@ export function convertPointFromNode(element, point, from, options) {
 */
 function transformPointBox(point, box, style, operator) {
     if (box === 'margin') {
-        return new DOMPoint(point.x + operator * parseFloat(style.marginLeft), point.y + operator * parseFloat(style.marginTop));
+        return new DOMPoint(point.x - operator * parseFloat(style.marginLeft), point.y - operator * parseFloat(style.marginTop));
     } else if (box === 'padding') {
         return new DOMPoint(point.x + operator * parseFloat(style.borderLeftWidth), point.y + operator * parseFloat(style.borderTopWidth));
     } else if (box === 'content') {
