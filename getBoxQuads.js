@@ -120,7 +120,7 @@ export function getBoxQuads(element, options) {
     /** @type {DOMMatrix} */
     let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(element, options?.relativeTo ?? document.body);
 
-    let arr = [{ x: 0, y: 0 }, { x: width, y: 0 }, { x: 0, y: height }, { x: width, y: height }];
+    let arr = [{ x: 0, y: 0 }, { x: width, y: 0 }, { x: width, y: height }, { x: 0, y: height }];
     /** @type { [DOMPoint, DOMPoint, DOMPoint, DOMPoint] } */
     //@ts-ignore
     const points = Array(4);
@@ -129,13 +129,13 @@ export function getBoxQuads(element, options) {
     let o = null;
     if (options?.box === 'margin') {
         const cs = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
-        o = [{ x: parseFloat(cs.marginLeft), y: parseFloat(cs.marginTop) }, { x: -parseFloat(cs.marginRight), y: parseFloat(cs.marginTop) }, { x: parseFloat(cs.marginLeft), y: -parseFloat(cs.marginBottom) }, { x: -parseFloat(cs.marginRight), y: -parseFloat(cs.marginBottom) }];
+        o = [{ x: parseFloat(cs.marginLeft), y: parseFloat(cs.marginTop) }, { x: -parseFloat(cs.marginRight), y: parseFloat(cs.marginTop) }, { x: -parseFloat(cs.marginRight), y: -parseFloat(cs.marginBottom) }, { x: parseFloat(cs.marginLeft), y: -parseFloat(cs.marginBottom) }];
     } else if (options?.box === 'padding') {
         const cs = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
-        o = [{ x: -parseFloat(cs.borderLeftWidth), y: -parseFloat(cs.borderTopWidth) }, { x: parseFloat(cs.borderRightWidth), y: -parseFloat(cs.borderTopWidth) }, { x: -parseFloat(cs.borderLeftWidth), y: parseFloat(cs.borderBottomWidth) }, { x: parseFloat(cs.borderRightWidth), y: parseFloat(cs.borderBottomWidth) }];
+        o = [{ x: -parseFloat(cs.borderLeftWidth), y: -parseFloat(cs.borderTopWidth) }, { x: parseFloat(cs.borderRightWidth), y: -parseFloat(cs.borderTopWidth) }, { x: parseFloat(cs.borderRightWidth), y: parseFloat(cs.borderBottomWidth) }, { x: -parseFloat(cs.borderLeftWidth), y: parseFloat(cs.borderBottomWidth) }];
     } else if (options?.box === 'content') {
         const cs = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
-        o = [{ x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }];
+        o = [{ x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }, { x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }];
     }
     if (options?.offset) {
         if (!o)
@@ -157,8 +157,7 @@ export function getBoxQuads(element, options) {
         else
             p = new DOMPoint(arr[i].x - o[i].x, arr[i].y - o[i].y);
 
-        let pTransformed = p.matrixTransform(originalElementAndAllParentsMultipliedMatrix);
-        points[i] = new DOMPoint(pTransformed.x, pTransformed.y, pTransformed.z);
+        points[i] = p.matrixTransform(originalElementAndAllParentsMultipliedMatrix);
     }
 
     /*let m = new DOMMatrix()
@@ -167,7 +166,7 @@ export function getBoxQuads(element, options) {
     originalElementAndAllParentsMultipliedMatrix = m.multiply(originalElementAndAllParentsMultipliedMatrix);*/
     //originalElementAndAllParentsMultipliedMatrix.m34 = 0;
 
-    return [new DOMQuad(points[0], points[1], points[3], points[2])];
+    return [new DOMQuad(points[0], points[1], points[2], points[3])];
 
     //const m = originalElementAndAllParentsMultipliedMatrix;
     //return [new DOMQuad(project3Dto2D(points[0], m), project3Dto2D(points[1], m), project3Dto2D(points[3], m), project3Dto2D(points[2], m))];
