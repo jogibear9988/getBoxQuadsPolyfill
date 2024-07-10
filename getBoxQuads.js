@@ -158,9 +158,35 @@ export function getBoxQuads(element, options) {
             p = new DOMPoint(arr[i].x - o[i].x, arr[i].y - o[i].y);
 
         let pTransformed = p.matrixTransform(originalElementAndAllParentsMultipliedMatrix);
-        points[i] = new DOMPoint(pTransformed.x, pTransformed.y);
+        points[i] = new DOMPoint(pTransformed.x, pTransformed.y, pTransformed.z);
     }
+
+    /*let m = new DOMMatrix()
+    m.m34 = originalElementAndAllParentsMultipliedMatrix.m34;
+    m = m.inverse();
+    originalElementAndAllParentsMultipliedMatrix = m.multiply(originalElementAndAllParentsMultipliedMatrix);*/
+    //originalElementAndAllParentsMultipliedMatrix.m34 = 0;
+
     return [new DOMQuad(points[0], points[1], points[3], points[2])];
+
+    //const m = originalElementAndAllParentsMultipliedMatrix;
+    //return [new DOMQuad(project3Dto2D(points[0], m), project3Dto2D(points[1], m), project3Dto2D(points[3], m), project3Dto2D(points[2], m))];
+}
+
+
+//todo: https://drafts.csswg.org/css-transforms-2/#accumulated-3d-transformation-matrix-computation
+// also good for writing a spec
+/**
+* @param {DOMPoint} point
+*/
+function project3Dto2D(point, m) {
+    //return point;
+    const projectionDistance = 1/m.m34;
+    const scale = projectionDistance / (projectionDistance + point.z);
+    return {
+        x: point.x * scale,
+        y: point.y * scale
+    };
 }
 
 /**
@@ -266,10 +292,11 @@ function getElementCombinedTransform(element) {
     const origin = s.transformOrigin.split(' ');
     const originX = parseFloat(origin[0]);
     const originY = parseFloat(origin[1]);
+    const originZ = origin[2] ? parseFloat(origin[2]) : 0;
 
     //TODO: 3d?
-    const mOri = new DOMMatrix().translate(originX, originY);
-    const mOriInv = new DOMMatrix().translate(-originX, -originY);
+    const mOri = new DOMMatrix().translate(originX, originY, originZ);
+    const mOriInv = new DOMMatrix().translate(-originX, -originY, -originZ);
 
     if (s.translate != 'none' && s.translate) {
         m = m.multiply(new DOMMatrix('translate(' + s.translate.replace(' ', ',') + ')'));
@@ -283,5 +310,25 @@ function getElementCombinedTransform(element) {
     if (s.transform != 'none' && s.transform) {
         m = m.multiply(new DOMMatrix(s.transform));
     }
+    return mOri.multiply(m.multiply(mOriInv));
+}
+
+/**
+* @param {Element} element
+*/
+function getElementPerspectiveTransform(element) {
+    //https://drafts.csswg.org/css-transforms-2/#perspective-matrix-computation
+    let s = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
+
+    let m = new DOMMatrix();
+    //https://drafts.csswg.org/css-transforms-2/#PerspectiveDefined
+    //m.m34 = -1 / parseFloat(s.perspective);
+    const origin = s.perspectiveOrigin.split(' ');
+    const originX = parseFloat(origin[0]);
+    const originY = parseFloat(origin[1]);
+
+    const mOri = new DOMMatrix().translate(originX, originY);
+    const mOriInv = new DOMMatrix().translate(-originX, -originY);
+
     return mOri.multiply(m.multiply(mOriInv));
 }
