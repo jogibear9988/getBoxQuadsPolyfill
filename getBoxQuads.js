@@ -1,6 +1,9 @@
 //todo:
+
 //transform-box  https://developer.mozilla.org/en-US/docs/Web/CSS/transform-box
 //transform-style https://developer.mozilla.org/en-US/docs/Web/CSS/transform-style
+//prespective
+//persepctive-origin
 
 export function addPolyfill() {
     if (!Element.prototype.getBoxQuads) {
@@ -166,13 +169,14 @@ export function getBoxQuads(element, options) {
         points[i] = as2DPoint(points[i]);
     }
 
-    console.log(originalElementAndAllParentsMultipliedMatrix.m34)
     return [new DOMQuad(points[0], points[1], points[2], points[3])];
 }
 
 
 //todo: https://drafts.csswg.org/css-transforms-2/#accumulated-3d-transformation-matrix-computation
 // also good for writing a spec
+
+// Find a value for z that will transform to 0. (from firefox matrix.h)
 /**
 * @param {DOMPoint} point
 */
@@ -182,6 +186,7 @@ function projectPoint(point, m) {
 }
 
 /**
+* convert a DOM-Point to 2D 
 * @param {DOMPoint} point
 */
 function as2DPoint(point) {
@@ -296,20 +301,6 @@ function getElementCombinedTransform(element) {
     const originY = parseFloat(origin[1]);
     const originZ = origin[2] ? parseFloat(origin[2]) : 0;
 
-
-    /**
-    maybe switch to Pre & post Translate of Matrix.h of Firefox, cause it is perfomater.
-    this could be used for the origin, & for the translate function.
-
-    maybe also check if there are more optimized versions of scale, rotate and so on
-
-    for scale there should be pre or post scale
-
-    maybe also do not create a matrix if none of the properties is set. and if none is set create and use
-    */
-
-    //TODO: 3d?
-    //fak2...
     const mOri = new DOMMatrix().translate(originX, originY, originZ);
     const mOriInv = new DOMMatrix().translate(-originX, -originY, -originZ);
 
@@ -328,16 +319,41 @@ function getElementCombinedTransform(element) {
 
     const res = mOri.multiply(m.multiply(mOriInv));
 
-    //why reset to zero???
-    //res.m23 = 0;
-    res.m31 = 0;
-    res.m32 = 0;
-    res.m34 = 0;
-    //res.m43 = 0;
-    //res.m33 = 1;
-
+    //TODO: in firefox this is conditional (if nsIFrame::Combines3DTransformWithAncestors(), we may need this also)
+    projectTo2D(res);
 
     return res;
+}
+
+/**
+* project a DOM-Matrix to 2D (from firefox matrix.h)
+* @param {DOMMatrix} m
+*/
+function projectTo2D(m) {
+    m.m31 = 0.0;
+    m.m32 = 0.0;
+    m.m13 = 0.0;
+    m.m23 = 0.0;
+    m.m33 = 1.0;
+    m.m43 = 0.0;
+    m.m34 = 0.0;
+    // Some matrices, such as those derived from perspective transforms,
+    // can modify _44 from 1, while leaving the rest of the fourth column
+    // (_14, _24) at 0. In this case, after resetting the third row and
+    // third column above, the value of _44 functions only to scale the
+    // coordinate transform divide by W. The matrix can be converted to
+    // a true 2D matrix by normalizing out the scaling effect of _44 on
+    // the remaining components ahead of time.
+    if (m.m14 == 0.0 && m.m24 == 0.0 && m.m44 != 1.0 && m.m44 != 0.0) {
+        const scale = 1.0 / m.m44;
+        m.m11 *= scale;
+        m.m12 *= scale;
+        m.m21 *= scale;
+        m.m22 *= scale;
+        m.m41 *= scale;
+        m.m42 *= scale;
+        m.m44 = 1.0;
+    }
 }
 
 /**
