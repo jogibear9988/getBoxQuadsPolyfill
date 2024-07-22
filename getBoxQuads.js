@@ -123,7 +123,6 @@ export function getBoxQuads(element, options) {
     let { width, height } = getElementSize(element);
     /** @type {DOMMatrix} */
     let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(element, options?.relativeTo ?? document.body);
-    console.log("res", originalElementAndAllParentsMultipliedMatrix)
 
     let arr = [{ x: 0, y: 0 }, { x: width, y: 0 }, { x: width, y: height }, { x: 0, y: height }];
     /** @type { [DOMPoint, DOMPoint, DOMPoint, DOMPoint] } */
@@ -163,31 +162,12 @@ export function getBoxQuads(element, options) {
         else
             p = new DOMPoint(arr[i].x - o[i].x, arr[i].y - o[i].y);
 
-        //from ProjectPoint form matrix.h
-        const m = originalElementAndAllParentsMultipliedMatrix;
-        let z = -(p.x * m.m13 + p.y * m.m23 + m.m43) / m.m33;
-        //p.z = z;
-
-        p.x=p.x*2;
-        p.y=p.y*2;
-
-        p =projectPoint(p, originalElementAndAllParentsMultipliedMatrix);
-        console.log('p ',i,p.x,p.y);
-        points[i] = p.matrixTransform(originalElementAndAllParentsMultipliedMatrix);
+        points[i] = projectPoint(p, originalElementAndAllParentsMultipliedMatrix).matrixTransform(originalElementAndAllParentsMultipliedMatrix);
         points[i] = as2DPoint(points[i]);
     }
 
-    /*let m = new DOMMatrix()
-    m.m34 = originalElementAndAllParentsMultipliedMatrix.m34;
-    m = m.inverse();
-    originalElementAndAllParentsMultipliedMatrix = m.multiply(originalElementAndAllParentsMultipliedMatrix);*/
-    //originalElementAndAllParentsMultipliedMatrix.m34 = 0;
-
     console.log(originalElementAndAllParentsMultipliedMatrix.m34)
     return [new DOMQuad(points[0], points[1], points[2], points[3])];
-
-    //const m = originalElementAndAllParentsMultipliedMatrix;
-    //return [new DOMQuad(project3Dto2D(points[0], m), project3Dto2D(points[1], m), project3Dto2D(points[2], m), project3Dto2D(points[3], m))];
 }
 
 
@@ -206,8 +186,8 @@ function projectPoint(point, m) {
 */
 function as2DPoint(point) {
     return new DOMPoint(
-        point.x / point.w / 2,
-        point.y / point.w / 2
+        point.x / point.w,
+        point.y / point.w
     );
 }
 
@@ -271,10 +251,8 @@ function getResultingTransformationBetweenElementAndAllAncestors(element, ancest
 
     while (actualElement != ancestor && actualElement != null) {
         const offsets = getElementOffsetsInContainer(actualElement);
-        const mvMat = new DOMMatrix().translate(offsets.x * 2, offsets.y *2);
-        let a=originalElementAndAllParentsMultipliedMatrix.scale(1);
+        const mvMat = new DOMMatrix().translate(offsets.x, offsets.y);
         originalElementAndAllParentsMultipliedMatrix = mvMat.multiply(originalElementAndAllParentsMultipliedMatrix);
-        //postTranslate(originalElementAndAllParentsMultipliedMatrix,offsets.x * 2,offsets.y *2,0)
 
         const parentElement = getParentElementIncludingSlots(actualElement);
         if (parentElement) {
@@ -331,8 +309,9 @@ function getElementCombinedTransform(element) {
     */
 
     //TODO: 3d?
-    const mOri = new DOMMatrix().translate(originX*2, originY*2, originZ*2);
-    const mOriInv = new DOMMatrix().translate(-originX*2, -originY*2, -originZ*2);
+    //fak2...
+    const mOri = new DOMMatrix().translate(originX, originY, originZ);
+    const mOriInv = new DOMMatrix().translate(-originX, -originY, -originZ);
 
     if (s.translate != 'none' && s.translate) {
         m = m.multiply(new DOMMatrix('translate(' + s.translate.replace(' ', ',') + ')'));
@@ -347,72 +326,18 @@ function getElementCombinedTransform(element) {
         m = m.multiply(new DOMMatrix(s.transform));
     }
 
-    //const appUnitsPerCSSPixel = 60; // fix value of 60
-    //const aAppUnitsPerMatrixUnit = 30; // why 30? todo;
-    const scale = 2; //appUnitsPerCSSPixel / aAppUnitsPerMatrixUnit;
-    preScale(m, 1 / scale, 1 / scale, 1 / scale);
-    postScale(m, scale, scale, scale);
-
-    console.log("m", m)
-
     const res = mOri.multiply(m.multiply(mOriInv));
 
-    //postTranslate(res, 100, 10, 0);
-    res.m23 = 0;
+    //why reset to zero???
+    //res.m23 = 0;
     res.m31 = 0;
     res.m32 = 0;
     res.m34 = 0;
-    res.m43 = 0;
-    res.m33 = 1;
-    console.log("orgi", res)
-   
-   
+    //res.m43 = 0;
+    //res.m33 = 1;
 
-    //console.log("scale", res)
-    //console.log("scale-i", m.inverse())
+
     return res;
-}
-
-/**
-* @param {DOMMatrix} m
-* @param {number} aX
-* @param {number} aY
-* @param {number} aZ
-*/
-function preScale(m, aX, aY, aZ) {
-    m.m11 *= aX;
-    m.m12 *= aX;
-    m.m13 *= aX;
-    m.m14 *= aX;
-    m.m21 *= aY;
-    m.m22 *= aY;
-    m.m23 *= aY;
-    m.m24 *= aY;
-    m.m31 *= aZ;
-    m.m32 *= aZ;
-    m.m33 *= aZ;
-    m.m34 *= aZ;
-}
-
-/**
-* @param {DOMMatrix} m
-* @param {number} aScaleX
-* @param {number} aScaleY
-* @param {number} aScaleZ
-*/
-function postScale(m, aScaleX, aScaleY, aScaleZ) {
-    m.m11 *= aScaleX;
-    m.m21 *= aScaleX;
-    m.m31 *= aScaleX;
-    m.m41 *= aScaleX;
-    m.m12 *= aScaleY;
-    m.m22 *= aScaleY;
-    m.m32 *= aScaleY;
-    m.m42 *= aScaleY;
-    m.m13 *= aScaleZ;
-    m.m23 *= aScaleZ;
-    m.m33 *= aScaleZ;
-    m.m43 *= aScaleZ;
 }
 
 /**
