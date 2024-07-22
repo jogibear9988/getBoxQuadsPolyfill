@@ -1,3 +1,7 @@
+//todo:
+//transform-box  https://developer.mozilla.org/en-US/docs/Web/CSS/transform-box
+//transform-style https://developer.mozilla.org/en-US/docs/Web/CSS/transform-style
+
 export function addPolyfill() {
     if (!Element.prototype.getBoxQuads) {
         //@ts-ignore
@@ -119,6 +123,7 @@ export function getBoxQuads(element, options) {
     let { width, height } = getElementSize(element);
     /** @type {DOMMatrix} */
     let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(element, options?.relativeTo ?? document.body);
+    console.log("res", originalElementAndAllParentsMultipliedMatrix)
 
     let arr = [{ x: 0, y: 0 }, { x: width, y: 0 }, { x: width, y: height }, { x: 0, y: height }];
     /** @type { [DOMPoint, DOMPoint, DOMPoint, DOMPoint] } */
@@ -149,6 +154,7 @@ export function getBoxQuads(element, options) {
         o[3].x = o[3].x + options.offset.p4.x;
         o[3].y = o[3].y + options.offset.p4.y;
     }
+
     for (let i = 0; i < 4; i++) {
         /** @type { DOMPoint } */
         let p;
@@ -157,7 +163,18 @@ export function getBoxQuads(element, options) {
         else
             p = new DOMPoint(arr[i].x - o[i].x, arr[i].y - o[i].y);
 
+        //from ProjectPoint form matrix.h
+        const m = originalElementAndAllParentsMultipliedMatrix;
+        let z = -(p.x * m.m13 + p.y * m.m23 + m.m43) / m.m33;
+        //p.z = z;
+
+        p.x=p.x*2;
+        p.y=p.y*2;
+
+        p =projectPoint(p, originalElementAndAllParentsMultipliedMatrix);
+        console.log('p ',i,p.x,p.y);
         points[i] = p.matrixTransform(originalElementAndAllParentsMultipliedMatrix);
+        points[i] = as2DPoint(points[i]);
     }
 
     /*let m = new DOMMatrix()
@@ -166,10 +183,11 @@ export function getBoxQuads(element, options) {
     originalElementAndAllParentsMultipliedMatrix = m.multiply(originalElementAndAllParentsMultipliedMatrix);*/
     //originalElementAndAllParentsMultipliedMatrix.m34 = 0;
 
+    console.log(originalElementAndAllParentsMultipliedMatrix.m34)
     return [new DOMQuad(points[0], points[1], points[2], points[3])];
 
     //const m = originalElementAndAllParentsMultipliedMatrix;
-    //return [new DOMQuad(project3Dto2D(points[0], m), project3Dto2D(points[1], m), project3Dto2D(points[3], m), project3Dto2D(points[2], m))];
+    //return [new DOMQuad(project3Dto2D(points[0], m), project3Dto2D(points[1], m), project3Dto2D(points[2], m), project3Dto2D(points[3], m))];
 }
 
 
@@ -178,14 +196,19 @@ export function getBoxQuads(element, options) {
 /**
 * @param {DOMPoint} point
 */
-function project3Dto2D(point, m) {
-    //return point;
-    const projectionDistance = 1/m.m34;
-    const scale = projectionDistance / (projectionDistance + point.z);
-    return {
-        x: point.x * scale,
-        y: point.y * scale
-    };
+function projectPoint(point, m) {
+    const z = -(point.x * m.m13 + point.y * m.m23 + m.m43) / m.m33;
+    return new DOMPoint(point.x, point.y, z, 1);
+}
+
+/**
+* @param {DOMPoint} point
+*/
+function as2DPoint(point) {
+    return new DOMPoint(
+        point.x / point.w / 2,
+        point.y / point.w / 2
+    );
 }
 
 /**
@@ -248,15 +271,17 @@ function getResultingTransformationBetweenElementAndAllAncestors(element, ancest
 
     while (actualElement != ancestor && actualElement != null) {
         const offsets = getElementOffsetsInContainer(actualElement);
-        const mvMat = new DOMMatrix().translate(offsets.x, offsets.y);
+        const mvMat = new DOMMatrix().translate(offsets.x * 2, offsets.y *2);
+        let a=originalElementAndAllParentsMultipliedMatrix.scale(1);
         originalElementAndAllParentsMultipliedMatrix = mvMat.multiply(originalElementAndAllParentsMultipliedMatrix);
+        //postTranslate(originalElementAndAllParentsMultipliedMatrix,offsets.x * 2,offsets.y *2,0)
 
         const parentElement = getParentElementIncludingSlots(actualElement);
         if (parentElement) {
             parentElementMatrix = getElementCombinedTransform(parentElement);
-            if (parentElement != ancestor) {
+            if (parentElement != ancestor)
                 originalElementAndAllParentsMultipliedMatrix = parentElementMatrix.multiply(originalElementAndAllParentsMultipliedMatrix);
-            } else
+            else
                 return originalElementAndAllParentsMultipliedMatrix;
         }
         actualElement = parentElement;
@@ -293,9 +318,21 @@ function getElementCombinedTransform(element) {
     const originY = parseFloat(origin[1]);
     const originZ = origin[2] ? parseFloat(origin[2]) : 0;
 
+
+    /**
+    maybe switch to Pre & post Translate of Matrix.h of Firefox, cause it is perfomater.
+    this could be used for the origin, & for the translate function.
+
+    maybe also check if there are more optimized versions of scale, rotate and so on
+
+    for scale there should be pre or post scale
+
+    maybe also do not create a matrix if none of the properties is set. and if none is set create and use
+    */
+
     //TODO: 3d?
-    const mOri = new DOMMatrix().translate(originX, originY, originZ);
-    const mOriInv = new DOMMatrix().translate(-originX, -originY, -originZ);
+    const mOri = new DOMMatrix().translate(originX*2, originY*2, originZ*2);
+    const mOriInv = new DOMMatrix().translate(-originX*2, -originY*2, -originZ*2);
 
     if (s.translate != 'none' && s.translate) {
         m = m.multiply(new DOMMatrix('translate(' + s.translate.replace(' ', ',') + ')'));
@@ -309,7 +346,73 @@ function getElementCombinedTransform(element) {
     if (s.transform != 'none' && s.transform) {
         m = m.multiply(new DOMMatrix(s.transform));
     }
-    return mOri.multiply(m.multiply(mOriInv));
+
+    //const appUnitsPerCSSPixel = 60; // fix value of 60
+    //const aAppUnitsPerMatrixUnit = 30; // why 30? todo;
+    const scale = 2; //appUnitsPerCSSPixel / aAppUnitsPerMatrixUnit;
+    preScale(m, 1 / scale, 1 / scale, 1 / scale);
+    postScale(m, scale, scale, scale);
+
+    console.log("m", m)
+
+    const res = mOri.multiply(m.multiply(mOriInv));
+
+    //postTranslate(res, 100, 10, 0);
+    res.m23 = 0;
+    res.m31 = 0;
+    res.m32 = 0;
+    res.m34 = 0;
+    res.m43 = 0;
+    res.m33 = 1;
+    console.log("orgi", res)
+   
+   
+
+    //console.log("scale", res)
+    //console.log("scale-i", m.inverse())
+    return res;
+}
+
+/**
+* @param {DOMMatrix} m
+* @param {number} aX
+* @param {number} aY
+* @param {number} aZ
+*/
+function preScale(m, aX, aY, aZ) {
+    m.m11 *= aX;
+    m.m12 *= aX;
+    m.m13 *= aX;
+    m.m14 *= aX;
+    m.m21 *= aY;
+    m.m22 *= aY;
+    m.m23 *= aY;
+    m.m24 *= aY;
+    m.m31 *= aZ;
+    m.m32 *= aZ;
+    m.m33 *= aZ;
+    m.m34 *= aZ;
+}
+
+/**
+* @param {DOMMatrix} m
+* @param {number} aScaleX
+* @param {number} aScaleY
+* @param {number} aScaleZ
+*/
+function postScale(m, aScaleX, aScaleY, aScaleZ) {
+    m.m11 *= aScaleX;
+    m.m21 *= aScaleX;
+    m.m31 *= aScaleX;
+    m.m41 *= aScaleX;
+    m.m12 *= aScaleY;
+    m.m22 *= aScaleY;
+    m.m32 *= aScaleY;
+    m.m42 *= aScaleY;
+    m.m13 *= aScaleZ;
+    m.m23 *= aScaleZ;
+    m.m33 *= aScaleZ;
+    m.m43 *= aScaleZ;
 }
 
 /**

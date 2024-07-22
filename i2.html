@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <div id="container" style="position: absolute; left: 0px; top: 0px; opacity: 0.4;">
+        <button id="el"
+            style="position: absolute; width: 41px; height: 37px; left: 50px; top: 5px; transform: perspective(50px) rotateX(45deg) ;">Test
+            2</button>
+    </div>
+    <svg id="overlay" style="position: absolute; left: 0px; top: 0px; pointer-events: none; opacity: 0.3"></svg>
+</body>
+<script type="module">
+    import { addPolyfill } from './getBoxQuads.js';
+    addPolyfill();
+
+    function draw() {
+        const ct = document.getElementById('container');
+        const el = document.getElementById('el');
+        const overlay = document.getElementById('overlay');
+        const p = el.getBoxQuads({ box: 'border', relativeTo: ct })[0];
+        console.log("p1", p.p1.x, p.p1.y, p.p1.z);
+        console.log("p4", p.p4.x, p.p4.y, p.p4.z);
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+        path.setAttribute("d", d);
+        overlay.appendChild(path);
+    }
+    draw();
+</script>
+
+</html>
