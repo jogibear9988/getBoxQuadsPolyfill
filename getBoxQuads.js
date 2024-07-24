@@ -2,8 +2,8 @@
 
 //transform-box  https://developer.mozilla.org/en-US/docs/Web/CSS/transform-box
 //transform-style https://developer.mozilla.org/en-US/docs/Web/CSS/transform-style
-//prespective
-//persepctive-origin
+//perspective
+//perspective-origin
 
 export function addPolyfill() {
     if (!Element.prototype.getBoxQuads) {
@@ -177,6 +177,7 @@ export function getBoxQuads(element, options) {
 // also good for writing a spec
 
 // Find a value for z that will transform to 0. (from firefox matrix.h)
+// or chromium https://github.com/chromium/chromium/blob/main/ui/gfx/geometry/transform.cc#L849
 /**
 * @param {DOMPoint} point
 */
@@ -291,7 +292,7 @@ function getParentElementIncludingSlots(element) {
 /**
 * @param {Element} element
 */
-function getElementCombinedTransform(element) {
+export function getElementCombinedTransform(element) {
     //https://www.w3.org/TR/css-transforms-2/#ctm
     let s = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
 
@@ -317,14 +318,22 @@ function getElementCombinedTransform(element) {
         m = m.multiply(new DOMMatrix(s.transform));
     }
 
-    const res = mOri.multiply(m.multiply(mOriInv));
+    let res = mOri.multiply(m.multiply(mOriInv));
 
+    //@ts-ignore
+    const pt = getElementPerspectiveTransform(element);
+    if (pt != null) {
+        //res = res.multiply(pt);
+        res = pt.multiply(res);
+    }
     //TODO: in firefox this is conditional (if nsIFrame::Combines3DTransformWithAncestors(), we may need this also)
+    //if(++i==1)
     projectTo2D(res);
 
     return res;
 }
 
+let i = 0;
 /**
 * project a DOM-Matrix to 2D (from firefox matrix.h)
 * @param {DOMMatrix} m
@@ -357,21 +366,27 @@ function projectTo2D(m) {
 }
 
 /**
-* @param {Element} element
+* @param {HTMLElement} element
 */
 function getElementPerspectiveTransform(element) {
+    /** @type { Element } */
+    //@ts-ignore
+    const perspectiveNode = element.parentNode;
     //https://drafts.csswg.org/css-transforms-2/#perspective-matrix-computation
-    let s = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
+    let s = (element.ownerDocument.defaultView ?? window).getComputedStyle(perspectiveNode);
+    if (s.perspective !== 'none') {
+        let m = new DOMMatrix();
+        let p = parseFloat(s.perspective);
+        m.m34 = -1.0 / p;
+        //https://drafts.csswg.org/css-transforms-2/#PerspectiveDefined
+        const origin = s.perspectiveOrigin.split(' ');
+        const originX = parseFloat(origin[0]) - element.offsetLeft;
+        const originY = parseFloat(origin[1]) - element.offsetTop;
 
-    let m = new DOMMatrix();
-    //https://drafts.csswg.org/css-transforms-2/#PerspectiveDefined
-    //m.m34 = -1 / parseFloat(s.perspective);
-    const origin = s.perspectiveOrigin.split(' ');
-    const originX = parseFloat(origin[0]);
-    const originY = parseFloat(origin[1]);
+        const mOri = new DOMMatrix().translate(originX, originY);
+        const mOriInv = new DOMMatrix().translate(-originX, -originY);
 
-    const mOri = new DOMMatrix().translate(originX, originY);
-    const mOriInv = new DOMMatrix().translate(-originX, -originY);
-
-    return mOri.multiply(m.multiply(mOriInv));
+        return mOri.multiply(m.multiply(mOriInv));
+    }
+    return null;
 }
