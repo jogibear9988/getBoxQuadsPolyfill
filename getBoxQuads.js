@@ -6,93 +6,93 @@
 //perspective-origin
 
 export function addPolyfill() {
-    if (!Element.prototype.getBoxQuads) {
+    if (!Node.prototype.getBoxQuads) {
         //@ts-ignore
-        Element.prototype.getBoxQuads = function (options) {
+        Node.prototype.getBoxQuads = function (options) {
             return getBoxQuads(this, options)
         }
     }
 
-    if (!Element.prototype.convertQuadFromNode) {
+    if (!Node.prototype.convertQuadFromNode) {
         //@ts-ignore
-        Element.prototype.convertQuadFromNode = function (quad, from, options) {
+        Node.prototype.convertQuadFromNode = function (quad, from, options) {
             return convertQuadFromNode(this, quad, from, options)
         }
     }
 
-    if (!Element.prototype.convertRectFromNode) {
+    if (!Node.prototype.convertRectFromNode) {
         //@ts-ignore
-        Element.prototype.convertRectFromNode = function (rect, from, options) {
+        Node.prototype.convertRectFromNode = function (rect, from, options) {
             return convertRectFromNode(this, rect, from, options)
         }
     }
 
-    if (!Element.prototype.convertPointFromNode) {
+    if (!Node.prototype.convertPointFromNode) {
         //@ts-ignore
-        Element.prototype.convertPointFromNode = function (point, from, options) {
+        Node.prototype.convertPointFromNode = function (point, from, options) {
             return convertPointFromNode(this, point, from, options)
         }
     }
 }
 
 /**
-* @param {Element} element
+* @param {Node} node
 * @param {DOMQuadInit} quad
 * @param {Element} from
 * @param {{fromBox?: 'margin'|'border'|'padding'|'content', toBox?: 'margin'|'border'|'padding'|'content'}=} options
 * @returns {DOMQuad}
 */
-export function convertQuadFromNode(element, quad, from, options) {
+export function convertQuadFromNode(node, quad, from, options) {
     const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body);
-    const m2 = getResultingTransformationBetweenElementAndAllAncestors(element, document.body).inverse();
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, document.body).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
-        quad = new DOMQuad(transformPointBox(quad.p1, options.fromBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(element), -1), transformPointBox(quad.p2, options.fromBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(element), -1), transformPointBox(quad.p3, options.fromBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(element), -1), transformPointBox(quad.p4, options.fromBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(element), -1))
+        quad = new DOMQuad(transformPointBox(quad.p1, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1), transformPointBox(quad.p2, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1), transformPointBox(quad.p3, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1), transformPointBox(quad.p4, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1))
     }
     let res = new DOMQuad(m2.transformPoint(m1.transformPoint(quad.p1)), m2.transformPoint(m1.transformPoint(quad.p2)), m2.transformPoint(m1.transformPoint(quad.p3)), m2.transformPoint(m1.transformPoint(quad.p4)));
-    if (options?.toBox && options?.toBox !== 'border') {
-        res = new DOMQuad(transformPointBox(res.p1, options.toBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(element), -1), transformPointBox(res.p2, options.toBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(element), -1), transformPointBox(res.p3, options.toBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(element), -1), transformPointBox(res.p4, options.toBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(element), -1))
+    if (options?.toBox && options?.toBox !== 'border' && node instanceof (node.ownerDocument.defaultView ?? window).Element) {
+        res = new DOMQuad(transformPointBox(res.p1, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1), transformPointBox(res.p2, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1), transformPointBox(res.p3, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1), transformPointBox(res.p4, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1))
     }
     return res;
 
 }
 
 /**
-* @param {Element} element
+* @param {Node} node
 * @param {DOMRectReadOnly} rect
 * @param {Element} from
 * @param {{fromBox?: 'margin'|'border'|'padding'|'content', toBox?: 'margin'|'border'|'padding'|'content'}=} options
 * @returns {DOMQuad}
 */
-export function convertRectFromNode(element, rect, from, options) {
+export function convertRectFromNode(node, rect, from, options) {
     const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body);
-    const m2 = getResultingTransformationBetweenElementAndAllAncestors(element, document.body).inverse();
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, document.body).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
-        const p = transformPointBox(new DOMPoint(rect.x, rect.y), options.fromBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(from), 1);
+        const p = transformPointBox(new DOMPoint(rect.x, rect.y), options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), 1);
         rect = new DOMRect(p.x, p.y, rect.width, rect.height);
     }
     let res = new DOMQuad(m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x, rect.y))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x + rect.width, rect.y))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x + rect.width, rect.y + rect.height))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x, rect.y + rect.height))));
-    if (options?.toBox && options?.toBox !== 'border') {
-        res = new DOMQuad(transformPointBox(res.p1, options.toBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(element), -1), transformPointBox(res.p2, options.toBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(element), -1), transformPointBox(res.p3, options.toBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(element), -1), transformPointBox(res.p4, options.toBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(element), -1))
+    if (options?.toBox && options?.toBox !== 'border' && node instanceof (node.ownerDocument.defaultView ?? window).Element) {
+        res = new DOMQuad(transformPointBox(res.p1, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1), transformPointBox(res.p2, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1), transformPointBox(res.p3, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1), transformPointBox(res.p4, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1))
     }
     return res;
 }
 
 /**
-* @param {Element} element
+* @param {Node} node
 * @param {DOMPointInit} point
 * @param {Element} from
 * @param {{fromBox?: 'margin'|'border'|'padding'|'content', toBox?: 'margin'|'border'|'padding'|'content'}=} options
 * @returns {DOMPoint}
 */
-export function convertPointFromNode(element, point, from, options) {
+export function convertPointFromNode(node, point, from, options) {
     const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body);
-    const m2 = getResultingTransformationBetweenElementAndAllAncestors(element, document.body).inverse();
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, document.body).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
-        point = transformPointBox(point, options.fromBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(from), 1);
+        point = transformPointBox(point, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), 1);
     }
     let res = m2.transformPoint(m1.transformPoint(point));
-    if (options?.toBox && options?.toBox !== 'border') {
-        res = transformPointBox(res, options.toBox, (element.ownerDocument.defaultView ?? window).getComputedStyle(element), -1);
+    if (options?.toBox && options?.toBox !== 'border' && node instanceof (node.ownerDocument.defaultView ?? window).Element) {
+        res = transformPointBox(res, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1);
     }
     return res;
 }
@@ -117,15 +117,15 @@ function transformPointBox(point, box, style, operator) {
 }
 
 /**
-* @param {Element} element
-* @param {{box?: 'margin'|'border'|'padding'|'content', relativeTo?: Element, offset: DOMQuad}=} options
+* @param {Node} node
+* @param {{box?: 'margin'|'border'|'padding'|'content', relativeTo?: Element, offset?: DOMQuad}=} options
 * @returns {DOMQuad[]}
 */
-export function getBoxQuads(element, options) {
+export function getBoxQuads(node, options) {
 
-    let { width, height } = getElementSize(element);
+    let { width, height } = getElementSize(node);
     /** @type {DOMMatrix} */
-    let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(element, options?.relativeTo ?? document.body);
+    let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(node, options?.relativeTo ?? document.body);
 
     let arr = [{ x: 0, y: 0 }, { x: width, y: 0 }, { x: width, y: height }, { x: 0, y: height }];
     /** @type { [DOMPoint, DOMPoint, DOMPoint, DOMPoint] } */
@@ -134,15 +134,17 @@ export function getBoxQuads(element, options) {
 
     /** @type {{x: number, y:number}[] } */
     let o = null;
-    if (options?.box === 'margin') {
-        const cs = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
-        o = [{ x: parseFloat(cs.marginLeft), y: parseFloat(cs.marginTop) }, { x: -parseFloat(cs.marginRight), y: parseFloat(cs.marginTop) }, { x: -parseFloat(cs.marginRight), y: -parseFloat(cs.marginBottom) }, { x: parseFloat(cs.marginLeft), y: -parseFloat(cs.marginBottom) }];
-    } else if (options?.box === 'padding') {
-        const cs = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
-        o = [{ x: -parseFloat(cs.borderLeftWidth), y: -parseFloat(cs.borderTopWidth) }, { x: parseFloat(cs.borderRightWidth), y: -parseFloat(cs.borderTopWidth) }, { x: parseFloat(cs.borderRightWidth), y: parseFloat(cs.borderBottomWidth) }, { x: -parseFloat(cs.borderLeftWidth), y: parseFloat(cs.borderBottomWidth) }];
-    } else if (options?.box === 'content') {
-        const cs = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
-        o = [{ x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }, { x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }];
+    if (node instanceof (node.ownerDocument.defaultView ?? window).Element) {
+        if (options?.box === 'margin') {
+            const cs = (node.ownerDocument.defaultView ?? window).getComputedStyle(node);
+            o = [{ x: parseFloat(cs.marginLeft), y: parseFloat(cs.marginTop) }, { x: -parseFloat(cs.marginRight), y: parseFloat(cs.marginTop) }, { x: -parseFloat(cs.marginRight), y: -parseFloat(cs.marginBottom) }, { x: parseFloat(cs.marginLeft), y: -parseFloat(cs.marginBottom) }];
+        } else if (options?.box === 'padding') {
+            const cs = (node.ownerDocument.defaultView ?? window).getComputedStyle(node);
+            o = [{ x: -parseFloat(cs.borderLeftWidth), y: -parseFloat(cs.borderTopWidth) }, { x: parseFloat(cs.borderRightWidth), y: -parseFloat(cs.borderTopWidth) }, { x: parseFloat(cs.borderRightWidth), y: parseFloat(cs.borderBottomWidth) }, { x: -parseFloat(cs.borderLeftWidth), y: parseFloat(cs.borderBottomWidth) }];
+        } else if (options?.box === 'content') {
+            const cs = (node.ownerDocument.defaultView ?? window).getComputedStyle(node);
+            o = [{ x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }, { x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }];
+        }
     }
     if (options?.offset) {
         if (!o)
@@ -198,58 +200,70 @@ function as2DPoint(point) {
 }
 
 /**
-* @param {Element} element
+* @param {Node} node
 */
-function getElementSize(element) {
+function getElementSize(node) {
     let width = 0;
     let height = 0;
-    if (element instanceof (element.ownerDocument.defaultView ?? window).HTMLElement) {
-        width = element.offsetWidth;
-        height = element.offsetHeight;
-    } else if (element instanceof (element.ownerDocument.defaultView ?? window).SVGSVGElement) {
-        width = element.width.baseVal.value
-        height = element.height.baseVal.value
-    } else if (element instanceof (element.ownerDocument.defaultView ?? window).SVGGraphicsElement) {
-        let bbox = element.getBBox()
+    if (node instanceof (node.ownerDocument.defaultView ?? window).HTMLElement) {
+        width = node.offsetWidth;
+        height = node.offsetHeight;
+    } else if (node instanceof (node.ownerDocument.defaultView ?? window).SVGSVGElement) {
+        width = node.width.baseVal.value
+        height = node.height.baseVal.value
+    } else if (node instanceof (node.ownerDocument.defaultView ?? window).SVGGraphicsElement) {
+        let bbox = node.getBBox()
         width = bbox.width;
         height = bbox.height;
-    } else if (element instanceof (element.ownerDocument.defaultView ?? window).MathMLElement) {
-        let bbox = element.getBoundingClientRect()
+    } else if (node instanceof (node.ownerDocument.defaultView ?? window).MathMLElement) {
+        let bbox = node.getBoundingClientRect()
         width = bbox.width;
         height = bbox.height;
+    } else if (node instanceof (node.ownerDocument.defaultView ?? window).Text) {
+        let range = document.createRange();
+        range.selectNodeContents(node);
+        let targetRect = range.getBoundingClientRect();
+        width = targetRect.width;
+        height = targetRect.height;
     }
     return { width, height }
 }
 
 /**
-* @param {Element} element
+* @param {Node} node
 */
-function getElementOffsetsInContainer(element) {
-    if (element instanceof (element.ownerDocument.defaultView ?? window).HTMLElement) {
-        return new DOMPoint(element.offsetLeft, element.offsetTop);
-    } else {
-        if (element instanceof (element.ownerDocument.defaultView ?? window).SVGGraphicsElement && !(element instanceof (element.ownerDocument.defaultView ?? window).SVGSVGElement)) {
-            const bb = element.getBBox();
+function getElementOffsetsInContainer(node) {
+    if (node instanceof (node.ownerDocument.defaultView ?? window).HTMLElement) {
+        return new DOMPoint(node.offsetLeft, node.offsetTop);
+    } else if (node instanceof (node.ownerDocument.defaultView ?? window).Text) {
+        let range = document.createRange();
+        range.selectNodeContents(node);
+        let r1 = range.getBoundingClientRect();
+        const r2 = node.parentElement.getBoundingClientRect();
+        return new DOMPoint(r1.x - r2.x, r1.y - r2.y);
+    } else if (node instanceof (node.ownerDocument.defaultView ?? window).Element) {
+        if (node instanceof (node.ownerDocument.defaultView ?? window).SVGGraphicsElement && !(node instanceof (node.ownerDocument.defaultView ?? window).SVGSVGElement)) {
+            const bb = node.getBBox();
             return new DOMPoint(bb.x, bb.y);
         }
-
-        const cs = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
+        const cs = (node.ownerDocument.defaultView ?? window).getComputedStyle(node);
         if (cs.position === 'absolute') {
             return new DOMPoint(parseFloat(cs.left), parseFloat(cs.top));
         }
-
-        const r1 = element.getBoundingClientRect();
-        const r2 = element.parentElement.getBoundingClientRect();
+        const r1 = node.getBoundingClientRect();
+        const r2 = node.parentElement.getBoundingClientRect();
         return new DOMPoint(r1.x - r2.x, r1.y - r2.y);
     }
 }
 
 /**
-* @param {Element} element
+* @param {Node} node
 * @param {Element} ancestor
 */
-function getResultingTransformationBetweenElementAndAllAncestors(element, ancestor) {
-    let actualElement = element;
+function getResultingTransformationBetweenElementAndAllAncestors(node, ancestor) {
+     /** @type {Element } */
+     //@ts-ignore
+    let actualElement = node;
     /** @type {DOMMatrix } */
     let parentElementMatrix;
     /** @type {DOMMatrix } */
@@ -310,6 +324,9 @@ function getParentElementIncludingSlots(element) {
 * @param {Element} element
 */
 export function getElementCombinedTransform(element) {
+    if (element instanceof Text)
+        return new DOMMatrix;
+
     //https://www.w3.org/TR/css-transforms-2/#ctm
     let s = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
 

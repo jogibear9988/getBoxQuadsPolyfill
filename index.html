@@ -50,6 +50,7 @@
     <div id="root"
         style="position: relative; left: 50px; top: 100px; background-color: #b0c4de40; width: 100%; height: 200%;">
         <div id="container" style="position: absolute; left: 0px; top: 0px; opacity: 0.4;">
+            ABC
             <button
                 style="position: absolute; width: 41px; height: 37px; left: 50px; top: 5px; transform: perspective(50px) rotateX(45deg) ;">Test
                 2</button>
@@ -209,6 +210,7 @@
         const ct = document.getElementById('container');
         const all = Array.from(ct.querySelectorAll('*'));
         all.push(wcContent.children[0]);
+        all.push(ct.firstChild);
         for (let e of all) {
             const p = e.getBoxQuads({ box: type.value, relativeTo: root })[0];
             const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
