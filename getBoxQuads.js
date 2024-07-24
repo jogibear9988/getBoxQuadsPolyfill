@@ -1,9 +1,5 @@
 //todo:
-
 //transform-box  https://developer.mozilla.org/en-US/docs/Web/CSS/transform-box
-//transform-style https://developer.mozilla.org/en-US/docs/Web/CSS/transform-style
-//perspective
-//perspective-origin
 
 export function addPolyfill() {
     if (!Node.prototype.getBoxQuads) {
