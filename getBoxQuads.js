@@ -39,7 +39,7 @@ export function addPolyfill() {
 * @param {Element} element
 * @param {DOMQuadInit} quad
 * @param {Element} from
-* @param {{fromBox: 'margin'|'border'|'padding'|'content',toBox: 'margin'|'border'|'padding'|'content'}=} options
+* @param {{fromBox?: 'margin'|'border'|'padding'|'content', toBox?: 'margin'|'border'|'padding'|'content'}=} options
 * @returns {DOMQuad}
 */
 export function convertQuadFromNode(element, quad, from, options) {
@@ -60,7 +60,7 @@ export function convertQuadFromNode(element, quad, from, options) {
 * @param {Element} element
 * @param {DOMRectReadOnly} rect
 * @param {Element} from
-* @param {{fromBox: 'margin'|'border'|'padding'|'content',toBox: 'margin'|'border'|'padding'|'content'}=} options
+* @param {{fromBox?: 'margin'|'border'|'padding'|'content', toBox?: 'margin'|'border'|'padding'|'content'}=} options
 * @returns {DOMQuad}
 */
 export function convertRectFromNode(element, rect, from, options) {
@@ -81,7 +81,7 @@ export function convertRectFromNode(element, rect, from, options) {
 * @param {Element} element
 * @param {DOMPointInit} point
 * @param {Element} from
-* @param {{fromBox: 'margin'|'border'|'padding'|'content',toBox: 'margin'|'border'|'padding'|'content'}=} options
+* @param {{fromBox?: 'margin'|'border'|'padding'|'content', toBox?: 'margin'|'border'|'padding'|'content'}=} options
 * @returns {DOMPoint}
 */
 export function convertPointFromNode(element, point, from, options) {
@@ -118,7 +118,7 @@ function transformPointBox(point, box, style, operator) {
 
 /**
 * @param {Element} element
-* @param {{box: 'margin'|'border'|'padding'|'content', relativeTo: Element, offset: DOMQuad}=} options
+* @param {{box?: 'margin'|'border'|'padding'|'content', relativeTo?: Element, offset: DOMQuad}=} options
 * @returns {DOMQuad[]}
 */
 export function getBoxQuads(element, options) {
