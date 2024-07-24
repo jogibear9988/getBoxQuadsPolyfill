@@ -230,7 +230,7 @@ function getElementSize(node) {
 */
 function getElementOffsetsInContainer(node) {
     if (node instanceof (node.ownerDocument.defaultView ?? window).HTMLElement) {
-        return new DOMPoint(node.offsetLeft, node.offsetTop);
+        return new DOMPoint(node.offsetLeft - node.scrollLeft, node.offsetTop - node.scrollTop);
     } else if (node instanceof (node.ownerDocument.defaultView ?? window).Text) {
         let range = document.createRange();
         range.selectNodeContents(node);
