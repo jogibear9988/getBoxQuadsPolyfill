@@ -368,7 +368,7 @@ function projectTo2D(m) {
 function getElementPerspectiveTransform(element) {
     /** @type { Element } */
     //@ts-ignore
-    const perspectiveNode = element.parentNode;
+    const perspectiveNode = getParentElementIncludingSlots(element);
     //https://drafts.csswg.org/css-transforms-2/#perspective-matrix-computation
     let s = (element.ownerDocument.defaultView ?? window).getComputedStyle(perspectiveNode);
     if (s.perspective !== 'none') {
