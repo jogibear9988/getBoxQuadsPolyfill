@@ -323,17 +323,14 @@ export function getElementCombinedTransform(element) {
     //@ts-ignore
     const pt = getElementPerspectiveTransform(element);
     if (pt != null) {
-        //res = res.multiply(pt);
         res = pt.multiply(res);
     }
     //TODO: in firefox this is conditional (if nsIFrame::Combines3DTransformWithAncestors(), we may need this also)
-    //if(++i==1)
     projectTo2D(res);
 
     return res;
 }
 
-let i = 0;
 /**
 * project a DOM-Matrix to 2D (from firefox matrix.h)
 * @param {DOMMatrix} m
