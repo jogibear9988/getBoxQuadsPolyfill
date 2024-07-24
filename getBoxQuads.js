@@ -254,6 +254,13 @@ function getResultingTransformationBetweenElementAndAllAncestors(element, ancest
     let parentElementMatrix;
     /** @type {DOMMatrix } */
     let originalElementAndAllParentsMultipliedMatrix = getElementCombinedTransform(actualElement);
+    let perspectiveParentElement = getParentElementIncludingSlots(actualElement);
+    if (perspectiveParentElement) {
+        let s = (actualElement.ownerDocument.defaultView ?? window).getComputedStyle(perspectiveParentElement);
+        if (s.transformStyle !== 'preserve-3d') {
+            projectTo2D(originalElementAndAllParentsMultipliedMatrix);
+        }
+    }
 
     while (actualElement != ancestor && actualElement != null) {
         const offsets = getElementOffsetsInContainer(actualElement);
@@ -263,9 +270,19 @@ function getResultingTransformationBetweenElementAndAllAncestors(element, ancest
         const parentElement = getParentElementIncludingSlots(actualElement);
         if (parentElement) {
             parentElementMatrix = getElementCombinedTransform(parentElement);
+
             if (parentElement != ancestor)
                 originalElementAndAllParentsMultipliedMatrix = parentElementMatrix.multiply(originalElementAndAllParentsMultipliedMatrix);
-            else
+
+            perspectiveParentElement = getParentElementIncludingSlots(parentElement);
+            if (perspectiveParentElement) {
+                const s = (perspectiveParentElement.ownerDocument.defaultView ?? window).getComputedStyle(perspectiveParentElement);
+                if (s.transformStyle !== 'preserve-3d') {
+                    projectTo2D(originalElementAndAllParentsMultipliedMatrix);
+                }
+            }
+
+            if (parentElement === ancestor)
                 return originalElementAndAllParentsMultipliedMatrix;
         }
         actualElement = parentElement;
@@ -325,9 +342,6 @@ export function getElementCombinedTransform(element) {
     if (pt != null) {
         res = pt.multiply(res);
     }
-    //TODO: in firefox this is conditional (if nsIFrame::Combines3DTransformWithAncestors(), we may need this also)
-    projectTo2D(res);
-
     return res;
 }
 
