@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <div id="container" style="position: absolute; left: 0px; top: 0px; opacity: 0.4;">
+        <div id="example-element" style="transform-style: flat; background: #623e3f;
+        border-radius: .75rem;
+        color: #fff;
+        transform: perspective(200px) rotateY(30deg);
+        position: relative;
+        perspective: 50px;
+        top: 200px;
+        left: 300px;
+        transform-style: preserve-3d;
+        ">
+            <p id="myp">Parent</p>
+            <div id="innerDiv" style="background-color: #ffba08;
+            border-radius: .2rem;
+            color: #000;
+            margin: 1rem;
+            padding: .2rem;
+            transform: rotate3d(1, 1, 1, 45deg);"> 
+                <code id="el" style="width: 600px;">rotate3d(1, 1, 1, 45deg)</code>
+            </div>
+        </div>
+    </div>
+    <svg id="overlay" style="position: absolute; left: 0px; top: 0px; pointer-events: none; opacity: 0.3"></svg>
+</body>
+<script type="module">
+    import { addPolyfill } from './getBoxQuads.js';
+    addPolyfill();
+
+    function draw() {
+        const ct = document.getElementById('container');
+        const el = document.getElementById('el');
+        const overlay = document.getElementById('overlay');
+        const p = el.getBoxQuads({ box: 'border', relativeTo: ct })[0];
+        console.log("p1", p.p1.x, p.p1.y, p.p1.z);
+        console.log("p4", p.p4.x, p.p4.y, p.p4.z);
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+        path.setAttribute("d", d);
+        overlay.appendChild(path);
+    }
+    draw();
+</script>
+
+</html>

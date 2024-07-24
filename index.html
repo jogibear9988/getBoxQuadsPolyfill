@@ -18,28 +18,33 @@
 
 <body>
     <template id="wc-test-template">
-        <div id="container" style="width: 100%; height: 100%; position: absolute">
+        <div style="width: 100%; height: 100%; position: absolute">
             <div
-                style="position: absolute; left: 50px; top: 5px; width: 100px; height: 50px; rotate: -45deg; background: lightpink;">
+                style="z-index: 1; position: absolute; left: 50px; top: 5px; width: 100px; height: 50px; rotate: -45deg; background: lightpink;">
                 WC-test</div>
         </div>
     </template>
 
+    <div style="z-index: -1; position: fixed; right: 5px; top: 20px; width: 400px; height: 200px; background: lightblue;">
+        <div style="position: absolute; right: 5px; top: 5px; color: gray; font-weight: 800;">Click Overlay</div>
+        <svg id="click-overlay" style="position: absolute; left: 0px; top: 0px; pointer-events: none;"></svg>
+    </div>
     <div style="display: flex; flex-direction: column;">
         Options:
         <select id="type" style="width: 300px;">
-            <option selected>margin</option>
-            <option>border</option>
+            <option>margin</option>
+            <option selected>border</option>
             <option>padding</option>
             <option>content</option>
             <option>none</option>
         </select>
         <div>
             The Overlays in the SVG are calculated via getBoxQuads and then drawn into an overlay layer<br><br>
-            See the last SVG Element has a wrong overlay. This only works correctly in Firefox, when you enable the
+            See the SVG Element and MathML Elemnts have a wrong overlay. They only works correctly in Firefox, when you enable the
             native getBoxQuads API. It's cause we display in a grid, so I don't know the offset in the control, and it
-            could
-            not be calculated via getBoundingClientRect cause of the rotation.
+            could not be calculated via getBoundingClientRect cause of the rotation.<br><br>
+            This could be fixed if the browsers support offsetLeft & top for all elements, or natively support getBoxQuads.<br><br>
+            In the "Click Overlay" you see the clicked element in transformed coordinates.
         </div>
     </div>
     <div id="root"
@@ -168,18 +173,19 @@
     }
 
     root.onclick = (e) => {
-        if (e.target == overlay)
+        const ctl = e.composedPath()[0];
+        if (ctl == overlay)
             return;
 
         const bcr = root.getBoundingClientRect();
 
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        const p = e.target.convertPointFromNode(new DOMPoint(e.x - bcr.left, e.y - bcr.top), root, { fromBox: 'border', toBox: type.value });
+        const p = ctl.convertPointFromNode(new DOMPoint(e.x - bcr.left, e.y - bcr.top), root, { fromBox: 'border', toBox: type.value });
 
         if (window.webkitConvertPointFromNodeToPage) {
             let wp = new WebKitPoint(e.x, e.y);
             let p2 = webkitConvertPointFromNodeToPage(root, wp);
-            let p3 = webkitConvertPointFromPageToNode(e.target, p2);
+            let p3 = webkitConvertPointFromPageToNode(ctl, p2);
             console.log("conv point", wp, p, p3);
         }
 
@@ -188,7 +194,9 @@
         rect.setAttribute("y", p.y - 5);
         rect.setAttribute("width", 10);
         rect.setAttribute("height", 10);
-        overlay.appendChild(rect);
+
+        const cov = document.getElementById('click-overlay');
+        cov.appendChild(rect);
         setTimeout(() => {
             rect.remove()
         }, 500);
