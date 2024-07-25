@@ -273,9 +273,16 @@ function getResultingTransformationBetweenElementAndAllAncestors(node, ancestor)
     }
     let lastOffsetParent = null;
     while (actualElement != ancestor && actualElement != null) {
-        if (actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLElement && lastOffsetParent !== actualElement.offsetParent && !(actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLSlotElement)) {
+        if (actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLElement) {
+            if (lastOffsetParent !== actualElement.offsetParent && !(actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLSlotElement)) {
+                const offsets = getElementOffsetsInContainer(actualElement);
+                lastOffsetParent = actualElement.offsetParent;
+                const mvMat = new DOMMatrix().translate(offsets.x, offsets.y);
+                originalElementAndAllParentsMultipliedMatrix = mvMat.multiply(originalElementAndAllParentsMultipliedMatrix);
+            }
+        } else {
             const offsets = getElementOffsetsInContainer(actualElement);
-            lastOffsetParent = actualElement.offsetParent;
+            lastOffsetParent = null;
             const mvMat = new DOMMatrix().translate(offsets.x, offsets.y);
             originalElementAndAllParentsMultipliedMatrix = mvMat.multiply(originalElementAndAllParentsMultipliedMatrix);
         }
