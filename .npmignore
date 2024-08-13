@@ -2,4 +2,6 @@ node_modules/
 tsconfig.json
 tsconfig.tsbuildinfo
 index.html
+i2.html
+i3.html
 package-lock.json
