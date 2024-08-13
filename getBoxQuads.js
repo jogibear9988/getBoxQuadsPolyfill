@@ -1,4 +1,4 @@
-//todo:
+//TODO:
 //transform-box  https://developer.mozilla.org/en-US/docs/Web/CSS/transform-box
 
 export function addPolyfill() {
@@ -198,7 +198,7 @@ function as2DPoint(point) {
 /**
 * @param {Node} node
 */
-function getElementSize(node) {
+export function getElementSize(node) {
     let width = 0;
     let height = 0;
     if (node instanceof (node.ownerDocument.defaultView ?? window).HTMLElement) {
@@ -228,7 +228,7 @@ function getElementSize(node) {
 /**
 * @param {Node} node
 */
-function getElementOffsetsInContainer(node) {
+function getElementOffsetsInContainer(node, m) {
     if (node instanceof (node.ownerDocument.defaultView ?? window).HTMLElement) {
         return new DOMPoint(node.offsetLeft - node.scrollLeft, node.offsetTop - node.scrollTop);
     } else if (node instanceof (node.ownerDocument.defaultView ?? window).Text) {
@@ -246,9 +246,14 @@ function getElementOffsetsInContainer(node) {
         if (cs.position === 'absolute') {
             return new DOMPoint(parseFloat(cs.left), parseFloat(cs.top));
         }
+
+        const m = getResultingTransformationBetweenElementAndAllAncestors(node.parentNode, document.body);
         const r1 = node.getBoundingClientRect();
+        const r1t = m.inverse().transformPoint(r1);
         const r2 = getParentElementIncludingSlots(node).getBoundingClientRect();
-        return new DOMPoint(r1.x - r2.x, r1.y - r2.y);
+        const r2t = m.inverse().transformPoint(r2);
+
+        return new DOMPoint(r1t.x - r2t.x, r1t.y - r2t.y);
     }
 }
 
@@ -256,7 +261,7 @@ function getElementOffsetsInContainer(node) {
 * @param {Node} node
 * @param {Element} ancestor
 */
-function getResultingTransformationBetweenElementAndAllAncestors(node, ancestor) {
+export function getResultingTransformationBetweenElementAndAllAncestors(node, ancestor) {
     /** @type {Element } */
     //@ts-ignore
     let actualElement = node;

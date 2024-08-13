@@ -10,6 +10,9 @@ following API's are supported:
     convertPointFromNode(point: DOMPoint, from: Element, options?: { fromBox: 'margin' | 'border' | 'padding' | 'content', toBox: 'margin' | 'border' | 'padding' | 'content' })
     getBoxQuads(element: Element, options?: { box: 'margin' | 'border' | 'padding' | 'content', relativeTo: Element })
 
+
+    getElementSize(node: Node) -> cause of missing offsetWidth in other node types
+
 # info
 gets the 4 transformed corner points of an Elment in DOM. Works only for HTMLElements. 
 Limited support for SVG and MathML, cause of missing offsetLeft & offsetTop-Properties on SVGElement and MathMLElement

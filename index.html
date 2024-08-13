@@ -25,7 +25,8 @@
         </div>
     </template>
 
-    <div style="z-index: -1; position: fixed; right: 5px; top: 20px; width: 400px; height: 200px; background: lightblue;">
+    <div
+        style="z-index: -1; position: fixed; right: 5px; top: 20px; width: 400px; height: 200px; background: lightblue;">
         <div style="position: absolute; right: 5px; top: 5px; color: gray; font-weight: 800;">Click Overlay</div>
         <svg id="click-overlay" style="position: absolute; left: 0px; top: 0px; pointer-events: none;"></svg>
     </div>
@@ -40,10 +41,12 @@
         </select>
         <div>
             The Overlays in the SVG are calculated via getBoxQuads and then drawn into an overlay layer<br><br>
-            See the SVG Element and MathML Elemnts have a wrong overlay. They only works correctly in Firefox, when you enable the
+            See the SVG Element and MathML Elemnts have a wrong overlay. They only works correctly in Firefox, when you
+            enable the
             native getBoxQuads API. It's cause we display in a grid, so I don't know the offset in the control, and it
             could not be calculated via getBoundingClientRect cause of the rotation.<br><br>
-            This could be fixed if the browsers support offsetLeft & top for all elements, or natively support getBoxQuads.<br><br>
+            This could be fixed if the browsers support offsetLeft & top for all elements, or natively support
+            getBoxQuads.<br><br>
             In the "Click Overlay" you see the clicked element in transformed coordinates.
         </div>
     </div>
@@ -137,6 +140,16 @@
                 <svg width="300" height="130" xmlns="http://www.w3.org/2000/svg">
                     <rect width="200" height="100" x="30" y="10" rx="20" ry="20" fill="blue" />
                 </svg>
+            </div>
+            <div
+            style="position: absolute; left: 50px; top: 1640px; width: 400px; height: 100px; rotate: 75deg; background:yellow; display: grid; grid-template-columns: 1fr 1fr;">
+                <div
+                    style="position: relative; left: 50px; top: 100px; width: 400px; height: 100px; rotate: 45deg; background:yellow; display: grid; grid-template-columns: 1fr 1fr;">
+                    <button>AaAAAAA</button>
+                    <svg width="300" height="130" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="200" height="100" x="30" y="10" rx="20" ry="20" fill="blue" />
+                    </svg>
+                </div>
             </div>
         </div>
         <svg id="overlay" style="position: absolute; left: 0px; top: 0px; pointer-events: none;"></svg>
