@@ -1,4 +1,4 @@
-//TODO:
+//todo:
 //transform-box  https://developer.mozilla.org/en-US/docs/Web/CSS/transform-box
 
 export function addPolyfill() {
@@ -118,7 +118,6 @@ function transformPointBox(point, box, style, operator) {
 * @returns {DOMQuad[]}
 */
 export function getBoxQuads(node, options) {
-
     let { width, height } = getElementSize(node);
     /** @type {DOMMatrix} */
     let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(node, options?.relativeTo ?? document.body);
@@ -228,7 +227,7 @@ export function getElementSize(node) {
 /**
 * @param {Node} node
 */
-function getElementOffsetsInContainer(node, m) {
+function getElementOffsetsInContainer(node) {
     if (node instanceof (node.ownerDocument.defaultView ?? window).HTMLElement) {
         return new DOMPoint(node.offsetLeft - node.scrollLeft, node.offsetTop - node.scrollTop);
     } else if (node instanceof (node.ownerDocument.defaultView ?? window).Text) {
@@ -246,7 +245,7 @@ function getElementOffsetsInContainer(node, m) {
         if (cs.position === 'absolute') {
             return new DOMPoint(parseFloat(cs.left), parseFloat(cs.top));
         }
-
+        
         const m = getResultingTransformationBetweenElementAndAllAncestors(node.parentNode, document.body);
         const r1 = node.getBoundingClientRect();
         const r1t = m.inverse().transformPoint(r1);
@@ -347,7 +346,6 @@ export function getElementCombinedTransform(element) {
     const originZ = origin[2] ? parseFloat(origin[2]) : 0;
 
     const mOri = new DOMMatrix().translate(originX, originY, originZ);
-    const mOriInv = new DOMMatrix().translate(-originX, -originY, -originZ);
 
     if (s.translate != 'none' && s.translate) {
         m = m.multiply(new DOMMatrix('translate(' + s.translate.replace(' ', ',') + ')'));
@@ -362,7 +360,7 @@ export function getElementCombinedTransform(element) {
         m = m.multiply(new DOMMatrix(s.transform));
     }
 
-    let res = mOri.multiply(m.multiply(mOriInv));
+    let res = mOri.multiply(m.multiply(mOri.inverse()));
 
     //@ts-ignore
     const pt = getElementPerspectiveTransform(element);
