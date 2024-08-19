@@ -5,13 +5,15 @@ a polyfill for the getBoxQuads API
 
 following API's are supported:
 
-    convertQuadFromNode(quad: DOMQuadInit, from: Element, options?: { fromBox: 'margin' | 'border' | 'padding' | 'content', toBox: 'margin' | 'border' | 'padding' | 'content' })
-    convertRectFromNode(rect: DOMRectReadOnly, from: Element, options?: { fromBox: 'margin' | 'border' | 'padding' | 'content', toBox: 'margin' | 'border' | 'padding' | 'content' })
-    convertPointFromNode(point: DOMPoint, from: Element, options?: { fromBox: 'margin' | 'border' | 'padding' | 'content', toBox: 'margin' | 'border' | 'padding' | 'content' })
-    getBoxQuads(element: Element, options?: { box: 'margin' | 'border' | 'padding' | 'content', relativeTo: Element })
+    convertQuadFromNode(quad: DOMQuadInit, from: Element, options?: { fromBox: 'margin' | 'border' | 'padding' | 'content', toBox: 'margin' | 'border' | 'padding' | 'content', iframes?: HTMLIFrameElement[] })
+    convertRectFromNode(rect: DOMRectReadOnly, from: Element, options?: { fromBox: 'margin' | 'border' | 'padding' | 'content', toBox: 'margin' | 'border' | 'padding' | 'content', iframes?: HTMLIFrameElement[] })
+    convertPointFromNode(point: DOMPoint, from: Element, options?: { fromBox: 'margin' | 'border' | 'padding' | 'content', toBox: 'margin' | 'border' | 'padding' | 'content', iframes?: HTMLIFrameElement[] })
+    getBoxQuads(element: Element, options?: { box: 'margin' | 'border' | 'padding' | 'content', relativeTo: Element, iframes?: HTMLIFrameElement[] })
 
 
     getElementSize(node: Node) -> cause of missing offsetWidth in other node types
+
+the API do have a non standard parameter "iframes", in wich you can hand over iframe objects in wich your elments are embeded in. This is not needed in the browser native API, but in the polyfill, the element inside of an iframe could not access it's container.
 
 # info
 gets the 4 transformed corner points of an Elment in DOM. Works only for HTMLElements. 
