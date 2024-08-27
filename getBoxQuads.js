@@ -123,7 +123,7 @@ function transformPointBox(point, box, style, operator) {
 export function getBoxQuads(node, options) {
     let { width, height } = getElementSize(node);
     /** @type {DOMMatrix} */
-    let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(node, options?.relativeTo ?? document.body, options.iframes);
+    let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(node, options?.relativeTo ?? (node.ownerDocument.defaultView ?? window).document.body.parentElement, options.iframes);
 
     let arr = [{ x: 0, y: 0 }, { x: width, y: 0 }, { x: width, y: height }, { x: 0, y: height }];
     /** @type { [DOMPoint, DOMPoint, DOMPoint, DOMPoint] } */
@@ -298,8 +298,11 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
                 }
             }
 
-            if (parentElement === ancestor)
+            if (parentElement === ancestor) {
+                if (parentElement.scrollTop || parentElement.scrollLeft)
+                    originalElementAndAllParentsMultipliedMatrix = new DOMMatrix().translate(-parentElement.scrollLeft, -parentElement.scrollTop).multiply(originalElementAndAllParentsMultipliedMatrix);
                 return originalElementAndAllParentsMultipliedMatrix;
+            }
         }
         actualElement = parentElement;
     }
