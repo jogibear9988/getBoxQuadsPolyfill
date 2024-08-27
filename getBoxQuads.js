@@ -42,8 +42,8 @@ export function addPolyfill(windowObj = window) {
 * @returns {DOMQuad}
 */
 export function convertQuadFromNode(node, quad, from, options) {
-    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body, options?.iframes);
-    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, document.body, options?.iframes).inverse();
+    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes);
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
         quad = new DOMQuad(transformPointBox(quad.p1, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1), transformPointBox(quad.p2, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1), transformPointBox(quad.p3, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1), transformPointBox(quad.p4, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1))
     }
@@ -63,8 +63,8 @@ export function convertQuadFromNode(node, quad, from, options) {
 * @returns {DOMQuad}
 */
 export function convertRectFromNode(node, rect, from, options) {
-    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body, options?.iframes);
-    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, document.body, options?.iframes).inverse();
+    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes);
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
         const p = transformPointBox(new DOMPoint(rect.x, rect.y), options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), 1);
         rect = new DOMRect(p.x, p.y, rect.width, rect.height);
@@ -84,8 +84,8 @@ export function convertRectFromNode(node, rect, from, options) {
 * @returns {DOMPoint}
 */
 export function convertPointFromNode(node, point, from, options) {
-    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body, options?.iframes);
-    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, document.body, options?.iframes).inverse();
+    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes);
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
         point = transformPointBox(point, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), 1);
     }
