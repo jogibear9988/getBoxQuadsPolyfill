@@ -1,6 +1,21 @@
 # getBoxQuadsPolyfill
 a polyfill for the getBoxQuads API
 
+# install
+
+    npm i get-box-quads-polyfill
+
+# usage
+
+## add polyfill
+
+    import { addPolyfill } from "get-box-quads-polyfill";
+    addPolyfill(window);
+
+now you can use the Api on objects derived from "Node" :
+
+    document.body.getBoxQuads(...)
+
 # api
 
 following API's are supported:
