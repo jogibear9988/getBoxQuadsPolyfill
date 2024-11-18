@@ -42,8 +42,8 @@ export function addPolyfill(windowObj = window) {
 * @returns {DOMQuad}
 */
 export function convertQuadFromNode(node, quad, from, options) {
-    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes);
-    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes).inverse();
+    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body, options?.iframes);
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, document.body, options?.iframes).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
         quad = new DOMQuad(transformPointBox(quad.p1, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1), transformPointBox(quad.p2, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1), transformPointBox(quad.p3, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1), transformPointBox(quad.p4, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1))
     }
@@ -57,7 +57,7 @@ export function convertQuadFromNode(node, quad, from, options) {
 
 /**
 * @param {Node} node
-* @param {DOMRectReadOnly} rect
+* @param {{x: number, y: number, width: number, height: number}} rect
 * @param {Element} from
 * @param {{fromBox?: 'margin'|'border'|'padding'|'content', toBox?: 'margin'|'border'|'padding'|'content', iframes?: HTMLIFrameElement[]}=} options
 * @returns {DOMQuad}
@@ -85,7 +85,7 @@ export function convertRectFromNode(node, rect, from, options) {
 */
 export function convertPointFromNode(node, point, from, options) {
     const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes);
-    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes).inverse();
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, document.body, options?.iframes).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
         point = transformPointBox(point, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), 1);
     }
@@ -115,15 +115,48 @@ function transformPointBox(point, box, style, operator) {
     return point;
 }
 
+/** @type { WeakMap<Node, number> } */
+let hash;
+/** @type { Map<string, DOMQuad[]> } */
+let boxQuadsCache;
+/** @type { Map<string, DOMMatrix> } */
+let transformCache;
+let hashId = 0;
+
+export function clearCache() {
+    boxQuadsCache.clear();
+    transformCache.clear();
+}
+
+export function useCache() {
+    hash = new WeakMap();
+    boxQuadsCache = new Map();
+    transformCache = new Map();
+}
+
 /**
 * @param {Node} node
 * @param {{box?: 'margin'|'border'|'padding'|'content', relativeTo?: Element, iframes?: HTMLIFrameElement[]}=} options
 * @returns {DOMQuad[]}
 */
 export function getBoxQuads(node, options) {
+    let key;
+    if (boxQuadsCache) {
+        let i1 = hash.get(node);
+        if (i1 === undefined)
+            hash.set(node, i1 = hashId++);
+        let i2 = hash.get(options?.relativeTo ?? document.body);
+        if (i2 === undefined)
+            hash.set(options?.relativeTo ?? document.body, i2 = hashId++);
+        key = i1 + '_' + i2 + '_' + (options?.box ?? 'border');
+        const q = boxQuadsCache.get(key);
+        if (q)
+            return q;
+    }
+
     let { width, height } = getElementSize(node);
     /** @type {DOMMatrix} */
-    let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(node, options?.relativeTo ?? (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes);
+    let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(node, options?.relativeTo ?? document.body, options.iframes);
 
     let arr = [{ x: 0, y: 0 }, { x: width, y: 0 }, { x: width, y: height }, { x: 0, y: height }];
     /** @type { [DOMPoint, DOMPoint, DOMPoint, DOMPoint] } */
@@ -157,7 +190,10 @@ export function getBoxQuads(node, options) {
         points[i] = as2DPoint(points[i]);
     }
 
-    return [new DOMQuad(points[0], points[1], points[2], points[3])];
+    const quad = [new DOMQuad(points[0], points[1], points[2], points[3])];
+    if (boxQuadsCache)
+        boxQuadsCache.set(key, quad);
+    return quad;
 }
 
 
@@ -198,17 +234,17 @@ export function getElementSize(node) {
         width = node.width.baseVal.value
         height = node.height.baseVal.value
     } else if (node instanceof (node.ownerDocument.defaultView ?? window).SVGGraphicsElement) {
-        let bbox = node.getBBox()
+        const bbox = node.getBBox()
         width = bbox.width;
         height = bbox.height;
     } else if (node instanceof (node.ownerDocument.defaultView ?? window).MathMLElement) {
-        let bbox = node.getBoundingClientRect()
+        const bbox = node.getBoundingClientRect()
         width = bbox.width;
         height = bbox.height;
     } else if (node instanceof (node.ownerDocument.defaultView ?? window).Text) {
-        let range = document.createRange();
+        const range = document.createRange();
         range.selectNodeContents(node);
-        let targetRect = range.getBoundingClientRect();
+        const targetRect = range.getBoundingClientRect();
         width = targetRect.width;
         height = targetRect.height;
     }
@@ -223,9 +259,9 @@ function getElementOffsetsInContainer(node, iframes) {
     if (node instanceof (node.ownerDocument.defaultView ?? window).HTMLElement) {
         return new DOMPoint(node.offsetLeft - node.scrollLeft, node.offsetTop - node.scrollTop);
     } else if (node instanceof (node.ownerDocument.defaultView ?? window).Text) {
-        let range = document.createRange();
+        const range = document.createRange();
         range.selectNodeContents(node);
-        let r1 = range.getBoundingClientRect();
+        const r1 = range.getBoundingClientRect();
         const r2 = getParentElementIncludingSlots(node, iframes).getBoundingClientRect();
         return new DOMPoint(r1.x - r2.x, r1.y - r2.y);
     } else if (node instanceof (node.ownerDocument.defaultView ?? window).Element) {
@@ -254,6 +290,20 @@ function getElementOffsetsInContainer(node, iframes) {
 * @param {HTMLIFrameElement[]} iframes
 */
 export function getResultingTransformationBetweenElementAndAllAncestors(node, ancestor, iframes) {
+    let key;
+    if (transformCache) {
+        let i1 = hash.get(node);
+        if (i1 === undefined)
+            hash.set(node, i1 = hashId++);
+        let i2 = hash.get(ancestor);
+        if (i2 === undefined)
+            hash.set(ancestor, i2 = hashId++);
+        key = i1 + '_' + i2;
+        const q = transformCache.get(key);
+        if (q)
+            return q;
+    }
+
     /** @type {Element } */
     //@ts-ignore
     let actualElement = node;
@@ -307,6 +357,9 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
         actualElement = parentElement;
     }
 
+    if (transformCache) {
+        transformCache.set(key, originalElementAndAllParentsMultipliedMatrix);
+    }
     return originalElementAndAllParentsMultipliedMatrix;
 }
 
@@ -335,7 +388,7 @@ function getParentElementIncludingSlots(node, iframes) {
 
 /**
 * @param {Element} element
-* @param {HTMLIFrameElement[]} iframes
+* @param {HTMLIFrameElement[]=} iframes
 */
 export function getElementCombinedTransform(element, iframes) {
     if (element instanceof (element.ownerDocument.defaultView ?? window).Text)
