@@ -30,6 +30,13 @@ following API's are supported:
 
 the API do have a non standard parameter "iframes", in wich you can hand over iframe objects in wich your elments are embeded in. This is not needed in the browser native API, but in the polyfill, the element inside of an iframe could not access it's container.
 
+additionaly there are:
+
+    useCache();
+    clearCache();
+
+wich are not needed with native boxQuadsApi, but in JS the calculations could take time, so we maybe need to cache them. But you need to manually clear the cache if you need refreshed values.
+
 # info
 gets the 4 transformed corner points of an Elment in DOM. Works only for HTMLElements. 
 Limited support for SVG and MathML, cause of missing offsetLeft & offsetTop-Properties on SVGElement and MathMLElement
