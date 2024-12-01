@@ -481,14 +481,16 @@ function getElementPerspectiveTransform(element, iframes) {
             let p = parseFloat(s.perspective);
             m.m34 = -1.0 / p;
             //https://drafts.csswg.org/css-transforms-2/#PerspectiveDefined
-            const origin = s.perspectiveOrigin.split(' ');
-            const originX = parseFloat(origin[0]) - element.offsetLeft;
-            const originY = parseFloat(origin[1]) - element.offsetTop;
+            if (s.perspectiveOrigin) {
+                const origin = s.perspectiveOrigin.split(' ');
+                const originX = parseFloat(origin[0]) - element.offsetLeft;
+                const originY = parseFloat(origin[1]) - element.offsetTop;
 
-            const mOri = new DOMMatrix().translate(originX, originY);
-            const mOriInv = new DOMMatrix().translate(-originX, -originY);
+                const mOri = new DOMMatrix().translate(originX, originY);
+                const mOriInv = new DOMMatrix().translate(-originX, -originY);
 
-            return mOri.multiply(m.multiply(mOriInv));
+                return mOri.multiply(m.multiply(mOriInv));
+            }
         }
     }
     return null;
