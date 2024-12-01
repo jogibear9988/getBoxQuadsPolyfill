@@ -223,17 +223,18 @@
             return;
         const ct = document.getElementById('container');
         if (type.value === 'text') {
-            const walker = document.createTreeWalker(ct, NodeFilter.SHOW_TEXT)
-            while (walker.nextNode()) {
-                let e = walker.currentNode;
-                const p = e.getBoxQuads({ box: 'border', relativeTo: root })[0];
-                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
-                path.setAttribute("d", d);
-                overlay.appendChild(path);
+            const iter = document.createNodeIterator(document, NodeFilter.SHOW_TEXT);
+            let e;
+            while (e = iter.nextNode()) {
+                const pp = e.getBoxQuads({ box: 'border', relativeTo: root });
+                for (let p of pp) {
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+                    path.setAttribute("d", d);
+                    overlay.appendChild(path);
+                }
             }
         } else {
-
             const all = Array.from(ct.querySelectorAll('*'));
             all.push(wcContent.children[0]);
             all.push(ct.firstChild);
