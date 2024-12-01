@@ -37,6 +37,7 @@
             <option selected>border</option>
             <option>padding</option>
             <option>content</option>
+            <option>text</option>
             <option>none</option>
         </select>
         <div>
@@ -142,7 +143,7 @@
                 </svg>
             </div>
             <div
-            style="position: absolute; left: 50px; top: 1640px; width: 400px; height: 100px; rotate: 75deg; background:yellow; display: grid; grid-template-columns: 1fr 1fr;">
+                style="position: absolute; left: 50px; top: 1640px; width: 400px; height: 100px; rotate: 75deg; background:yellow; display: grid; grid-template-columns: 1fr 1fr;">
                 <div
                     style="position: relative; left: 50px; top: 100px; width: 400px; height: 100px; rotate: 45deg; background:yellow; display: grid; grid-template-columns: 1fr 1fr;">
                     <button>AaAAAAA</button>
@@ -221,15 +222,28 @@
         if (type.value === 'none')
             return;
         const ct = document.getElementById('container');
-        const all = Array.from(ct.querySelectorAll('*'));
-        all.push(wcContent.children[0]);
-        all.push(ct.firstChild);
-        for (let e of all) {
-            const p = e.getBoxQuads({ box: type.value, relativeTo: root })[0];
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
-            path.setAttribute("d", d);
-            overlay.appendChild(path);
+        if (type.value === 'text') {
+            const walker = document.createTreeWalker(ct, NodeFilter.SHOW_TEXT)
+            while (walker.nextNode()) {
+                let e = walker.currentNode;
+                const p = e.getBoxQuads({ box: 'border', relativeTo: root })[0];
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+                path.setAttribute("d", d);
+                overlay.appendChild(path);
+            }
+        } else {
+
+            const all = Array.from(ct.querySelectorAll('*'));
+            all.push(wcContent.children[0]);
+            all.push(ct.firstChild);
+            for (let e of all) {
+                const p = e.getBoxQuads({ box: type.value, relativeTo: root })[0];
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+                path.setAttribute("d", d);
+                overlay.appendChild(path);
+            }
         }
     }
     draw();
