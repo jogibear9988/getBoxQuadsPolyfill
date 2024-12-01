@@ -223,7 +223,7 @@
             return;
         const ct = document.getElementById('container');
         if (type.value === 'text') {
-            const iter = document.createNodeIterator(document, NodeFilter.SHOW_TEXT);
+            const iter = document.createNodeIterator(ct, NodeFilter.SHOW_TEXT);
             let e;
             while (e = iter.nextNode()) {
                 const pp = e.getBoxQuads({ box: 'border', relativeTo: root });
