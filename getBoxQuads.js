@@ -267,7 +267,7 @@ function getElementOffsetsInContainer(node, iframes) {
         //@ts-ignore
         const parent = getParentElementIncludingSlots(node, iframes);
         const r2 = parent.getBoundingClientRect();
-        const zX = parent.offsetWidth / r2.width ;
+        const zX = parent.offsetWidth / r2.width;
         const zY = parent.offsetHeight / r2.height;
         return new DOMPoint((r1.x - r2.x) * zX, (r1.y - r2.y) * zY);
     } else if (node instanceof (node.ownerDocument.defaultView ?? window).Element) {
@@ -280,10 +280,11 @@ function getElementOffsetsInContainer(node, iframes) {
             return new DOMPoint(parseFloat(cs.left), parseFloat(cs.top));
         }
 
-        const m = getResultingTransformationBetweenElementAndAllAncestors(node.parentNode, document.body, iframes);
+        const par = getParentElementIncludingSlots(node, iframes);
+        const m = getResultingTransformationBetweenElementAndAllAncestors(par, document.body, iframes);
         const r1 = node.getBoundingClientRect();
         const r1t = m.inverse().transformPoint(r1);
-        const r2 = getParentElementIncludingSlots(node, iframes).getBoundingClientRect();
+        const r2 = par.getBoundingClientRect();
         const r2t = m.inverse().transformPoint(r2);
 
         return new DOMPoint(r1t.x - r2t.x, r1t.y - r2t.y);
@@ -326,20 +327,22 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
     }
     let lastOffsetParent = null;
     while (actualElement != ancestor && actualElement != null) {
-        if (actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLElement) {
-            if (lastOffsetParent !== actualElement.offsetParent && !(actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLSlotElement)) {
+        const parentElement = getParentElementIncludingSlots(actualElement, iframes);
+        if (!(parentElement instanceof HTMLSlotElement)) {
+            if (actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLElement) {
+                if (lastOffsetParent !== actualElement.offsetParent && !(actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLSlotElement)) {
+                    const offsets = getElementOffsetsInContainer(actualElement, iframes);
+                    lastOffsetParent = actualElement.offsetParent;
+                    const mvMat = new DOMMatrix().translate(offsets.x, offsets.y);
+                    originalElementAndAllParentsMultipliedMatrix = mvMat.multiply(originalElementAndAllParentsMultipliedMatrix);
+                }
+            } else {
                 const offsets = getElementOffsetsInContainer(actualElement, iframes);
-                lastOffsetParent = actualElement.offsetParent;
+                lastOffsetParent = null;
                 const mvMat = new DOMMatrix().translate(offsets.x, offsets.y);
                 originalElementAndAllParentsMultipliedMatrix = mvMat.multiply(originalElementAndAllParentsMultipliedMatrix);
             }
-        } else {
-            const offsets = getElementOffsetsInContainer(actualElement, iframes);
-            lastOffsetParent = null;
-            const mvMat = new DOMMatrix().translate(offsets.x, offsets.y);
-            originalElementAndAllParentsMultipliedMatrix = mvMat.multiply(originalElementAndAllParentsMultipliedMatrix);
         }
-        const parentElement = getParentElementIncludingSlots(actualElement, iframes);
         if (parentElement) {
             parentElementMatrix = getElementCombinedTransform(parentElement, iframes);
 
