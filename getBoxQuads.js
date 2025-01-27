@@ -155,7 +155,7 @@ export function getBoxQuads(node, options) {
     }
 
     /** @type {DOMMatrix} */
-    let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(node, options?.relativeTo ?? document.body, options.iframes);
+    let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(node, options?.relativeTo ?? document.body, options?.iframes);
     let { width, height } = getElementSize(node, originalElementAndAllParentsMultipliedMatrix);
 
     let arr = [{ x: 0, y: 0 }, { x: width, y: 0 }, { x: width, y: height }, { x: 0, y: height }];
