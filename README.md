@@ -59,3 +59,4 @@ https://lists.w3.org/Archives/Public/www-style/2013Aug/0609.html
 - getElementCombinedTransform (or a similar named API) should also be included. this could be needed for example to draw a transformed rect.
 - the getBoxQuads API should have the offset Property of this polyfill also (cause for example you may want to use getBoxQuads to get a point to draw a overlay wich is offset a little bit)
 - extend the spec with the 3D part of the polyfill
+- the propertys offset-... css properties are completely ignored at the moment. (use package svg-getpointatlength) (optional dep)

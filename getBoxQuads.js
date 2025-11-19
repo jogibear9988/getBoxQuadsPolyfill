@@ -292,7 +292,12 @@ export function getElementSize(node, matrix) {
 */
 function getElementOffsetsInContainer(node, includeScroll, iframes) {
     if ((node instanceof HTMLElement || node instanceof (node.ownerDocument.defaultView ?? window).HTMLElement)) {
-        return new DOMPoint(node.offsetLeft - (includeScroll ? node.scrollLeft : 0), node.offsetTop - (includeScroll ? node.scrollTop : 0));
+        if (includeScroll) {
+            const cs = (node.ownerDocument.defaultView ?? window).getComputedStyle(node);
+            return new DOMPoint(node.offsetLeft - (includeScroll ? node.scrollLeft - parseFloat(cs.borderLeftWidth) : 0), node.offsetTop - (includeScroll ? node.scrollTop - parseFloat(cs.borderTopWidth) : 0));
+        } else {
+            return new DOMPoint(node.offsetLeft, node.offsetTop);
+        }
     } else if ((node instanceof Text || node instanceof (node.ownerDocument.defaultView ?? window).Text)) {
         const range = document.createRange();
         range.selectNodeContents(node);
@@ -459,7 +464,17 @@ export function getElementCombinedTransform(element, iframes) {
     const mOri = new DOMMatrix().translate(originX, originY, originZ);
 
     if (s.translate != 'none' && s.translate) {
-        m = m.multiply(new DOMMatrix('translate(' + s.translate.replace(' ', ',') + ')'));
+        let tr = s.translate;
+        if (tr.includes('%')) {
+            const v = tr.split(' ');
+            const r = element.getBoundingClientRect();
+            if (v[0].endsWith('%'))
+                v[0] = (parseFloat(v[0]) * r.width / 100) + 'px';
+            if (v[1]?.endsWith('%'))
+                v[1] = (parseFloat(v[1]) * r.height / 100) + 'px';
+            tr = v.join(',');
+        }
+        m = m.multiply(new DOMMatrix('translate(' + tr.replace(' ', ',') + ')'));
     }
     if (s.rotate != 'none' && s.rotate) {
         m = m.multiply(new DOMMatrix('rotate(' + s.rotate.replace(' ', ',') + ')'));
