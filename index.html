@@ -22,7 +22,7 @@
             <div
                 style="z-index: 1; position: absolute; left: 50px; top: 5px; width: 100px; height: 50px; rotate: -45deg; background: lightpink;">
                 WC-test
-            <slot></slot>
+                <slot></slot>
             </div>
         </div>
     </template>
@@ -56,10 +56,21 @@
     <div id="root"
         style="position: relative; left: 50px; top: 100px; background-color: #b0c4de40; width: 100%; height: 200%;">
         <div id="container" style="position: absolute; left: 0px; top: 0px; opacity: 0.4;">
-            <button style="offset-path: circle(100px at 150px 150px); offset-distance: 0%; offset-rotate: -0deg; z-index: 9999; position: absolute;">Test Offset Path 0</button>
-            <button style="offset-path: circle(100px at 150px 150px); offset-distance: 25%; offset-rotate: 45deg;  z-index: 9999; position: absolute;">Test Offset Path 25</button>
-            <button style="offset-path: circle(100px at 150px 150px); offset-distance: 50%; offset-rotate: 0deg; z-index: 9999; position: absolute;">Test Offset Path 50</button>
-            <button style="offset-path: circle(100px at 150px 150px); offset-distance: 75%; z-index: 9999; position: absolute;">Test Offset Path 75</button>
+            <button
+                style="offset-path: circle(100px at 150px 150px); offset-distance: 0%; offset-rotate: -0deg; z-index: 9999; position: absolute;">Test
+                Offset Path 0</button>
+            <button
+                style="offset-path: circle(100px at 150px 150px); offset-distance: 25%; offset-rotate: 45deg;  z-index: 9999; position: absolute;">Test
+                Offset Path 25</button>
+            <button
+                style="offset-path: circle(100px at 150px 150px); offset-distance: 50%; transform-origin: 60px 20px; rotate: 45deg; offset-rotate: 0deg; z-index: 9999; position: absolute;">Test
+                Offset Path 50</button>
+            <button
+                style="offset-path: circle(100px at 150px 150px); offset-distance: 75%; z-index: 9999; position: absolute;">Test
+                Offset Path 75</button>
+            <button
+                style="z-index: 9999; position: absolute; left: 300px; top: 300px; rotate: 30deg; transform-origin: 60px 20px;">Test
+                rotate</button>
             ABC
             <button
                 style="position: absolute; width: 41px; height: 37px; left: 50px; top: 5px; transform: perspective(50px) rotateX(45deg) ;">Test
@@ -161,6 +172,7 @@
                     </svg>
                 </div>
             </div>
+
         </div>
         <svg id="overlay" style="position: absolute; left: 0px; top: 0px; pointer-events: none;"></svg>
     </div>

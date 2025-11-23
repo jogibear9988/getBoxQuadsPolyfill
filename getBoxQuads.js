@@ -324,11 +324,11 @@ function getElementOffsetsInContainer(node, includeScroll, iframes) {
         }
 
         const par = getParentElementIncludingSlots(node, iframes);
-        const m = getResultingTransformationBetweenElementAndAllAncestors(par, document.body, iframes);
+        const m = getResultingTransformationBetweenElementAndAllAncestors(par, document.body, iframes).inverse();
         const r1 = node.getBoundingClientRect();
-        const r1t = m.inverse().transformPoint(r1);
+        const r1t = m.transformPoint(r1);
         const r2 = par.getBoundingClientRect();
-        const r2t = m.inverse().transformPoint(r2);
+        const r2t = m.transformPoint(r2);
 
         return new DOMPoint(r1t.x - r2t.x, r1t.y - r2t.y);
     }
@@ -467,10 +467,6 @@ export function getElementCombinedTransform(element, iframes) {
 
     const mOri = new DOMMatrix().translate(originX, originY, originZ);
 
-    if (s.offsetPath && s.offsetPath !== 'none') {
-        m = m.multiply(computeOffsetTransformMatrix(element));
-    }
-
     if (s.translate != 'none' && s.translate) {
         let tr = s.translate;
         if (tr.includes('%')) {
@@ -482,26 +478,30 @@ export function getElementCombinedTransform(element, iframes) {
                 v[1] = (parseFloat(v[1]) * r.height / 100) + 'px';
             tr = v.join(',');
         }
-        m = m.multiply(new DOMMatrix('translate(' + tr.replace(' ', ',') + ')'));
+        m.multiplySelf(new DOMMatrix('translate(' + tr.replaceAll(' ', ',') + ')'));
     }
     if (s.rotate != 'none' && s.rotate) {
-        m = m.multiply(new DOMMatrix('rotate(' + s.rotate.replace(' ', ',') + ')'));
+        m.multiplySelf(new DOMMatrix('rotate(' + s.rotate.replaceAll(' ', ',') + ')'));
     }
     if (s.scale != 'none' && s.scale) {
-        m = m.multiply(new DOMMatrix('scale(' + s.scale.replace(' ', ',') + ')'));
+        m.multiplySelf(new DOMMatrix('scale(' + s.scale.replaceAll(' ', ',') + ')'));
     }
     if (s.transform != 'none' && s.transform) {
-        m = m.multiply(new DOMMatrix(s.transform));
+        m.multiplySelf(new DOMMatrix(s.transform));
     }
 
-    let res = mOri.multiply(m.multiply(mOri.inverse()));
+    m = mOri.multiply(m.multiply(mOri.inverse()));
+
+    if (s.offsetPath && s.offsetPath !== 'none') {
+        m.multiplySelf(computeOffsetTransformMatrix(element));
+    }
 
     //@ts-ignore
     const pt = getElementPerspectiveTransform(element, iframes);
     if (pt != null) {
-        res = pt.multiply(res);
+        m = pt.multiply(m);
     }
-    return res;
+    return m;
 }
 
 /**
@@ -573,6 +573,7 @@ function computeOffsetTransformMatrix(elem) {
     const offsetDistance = cs.offsetDistance;  // e.g. "50%"
     const offsetRotate = cs.offsetRotate;      // e.g. "auto", "45deg", "auto 30deg"
     const offsetAnchor = cs.offsetAnchor;
+    const transformOrigin = cs.transformOrigin;
 
     // Parse offset-distance (px or %)
     let distance = parseOffsetDistance(offsetDistance);
@@ -590,25 +591,24 @@ function computeOffsetTransformMatrix(elem) {
         rotateFinal = parseFloat(offsetRotate);
     }
 
-    let anchor = parseOffsetAnchor(offsetAnchor, elem);
+    const anchor = parseOffsetAnchor(offsetAnchor, transformOrigin, elem);
 
-    const anchorMatrix = new DOMMatrix()
-        .translateSelf(-anchor.x, -anchor.y);
+    const anchorMatrix = new DOMMatrix().translateSelf(-anchor.x, -anchor.y);
 
-    let m = anchorMatrix.translateSelf(x, y);
-    m = m.rotateSelf(rotateFinal);
+    let m = anchorMatrix.translate(x, y);
+    m.multiplySelf(anchorMatrix.invertSelf());
+    m.rotateSelf(rotateFinal);
+    m.translateSelf(-anchor.x, -anchor.y);
+    
     return m;
 }
 
-function parseOffsetAnchor(str, elem) {
-    let width = elem.offsetWidth;
-    let height = elem.offsetHeight;
-    //if (!(elem instanceof HTMLElement)) {
-    //    const rect = elem.getBoundingClientRect();
-    //}
+function parseOffsetAnchor(str, transformOrigin, elem) {
+    const width = elem.offsetWidth;
+    const height = elem.offsetHeight;
 
     if (!str || str === "auto") {
-        return { x: width / 2, y: height / 2 };
+        str = transformOrigin;
     }
 
     const parts = str.split(/\s+/);
