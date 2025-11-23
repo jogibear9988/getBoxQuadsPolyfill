@@ -78,11 +78,11 @@ export function convertQuadFromNode(node, quad, from, options) {
     const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body, options?.iframes);
     const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, document.body, options?.iframes).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
-        quad = new DOMQuad(transformPointBox(quad.p1, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1), transformPointBox(quad.p2, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1), transformPointBox(quad.p3, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1), transformPointBox(quad.p4, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), -1))
+        quad = new DOMQuad(transformPointBox(quad.p1, options.fromBox, getCachedComputedStyle(from), -1), transformPointBox(quad.p2, options.fromBox, getCachedComputedStyle(from), -1), transformPointBox(quad.p3, options.fromBox, getCachedComputedStyle(from), -1), transformPointBox(quad.p4, options.fromBox, getCachedComputedStyle(from), -1))
     }
     let res = new DOMQuad(m2.transformPoint(m1.transformPoint(quad.p1)), m2.transformPoint(m1.transformPoint(quad.p2)), m2.transformPoint(m1.transformPoint(quad.p3)), m2.transformPoint(m1.transformPoint(quad.p4)));
     if (options?.toBox && options?.toBox !== 'border' && (node instanceof Element || node instanceof (node.ownerDocument.defaultView ?? window).Element)) {
-        res = new DOMQuad(transformPointBox(res.p1, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1), transformPointBox(res.p2, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1), transformPointBox(res.p3, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1), transformPointBox(res.p4, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1))
+        res = new DOMQuad(transformPointBox(res.p1, options.toBox, getCachedComputedStyle(node), -1), transformPointBox(res.p2, options.toBox, getCachedComputedStyle(node), -1), transformPointBox(res.p3, options.toBox, getCachedComputedStyle(node), -1), transformPointBox(res.p4, options.toBox, getCachedComputedStyle(node), -1))
     }
     return res;
 
@@ -99,12 +99,12 @@ export function convertRectFromNode(node, rect, from, options) {
     const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes);
     const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
-        const p = transformPointBox(new DOMPoint(rect.x, rect.y), options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), 1);
+        const p = transformPointBox(new DOMPoint(rect.x, rect.y), options.fromBox, getCachedComputedStyle(from), 1);
         rect = new DOMRect(p.x, p.y, rect.width, rect.height);
     }
     let res = new DOMQuad(m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x, rect.y))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x + rect.width, rect.y))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x + rect.width, rect.y + rect.height))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x, rect.y + rect.height))));
     if (options?.toBox && options?.toBox !== 'border' && (node instanceof Element || node instanceof (node.ownerDocument.defaultView ?? window).Element)) {
-        res = new DOMQuad(transformPointBox(res.p1, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1), transformPointBox(res.p2, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1), transformPointBox(res.p3, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1), transformPointBox(res.p4, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1))
+        res = new DOMQuad(transformPointBox(res.p1, options.toBox, getCachedComputedStyle(node), -1), transformPointBox(res.p2, options.toBox, getCachedComputedStyle(node), -1), transformPointBox(res.p3, options.toBox, getCachedComputedStyle(node), -1), transformPointBox(res.p4, options.toBox, getCachedComputedStyle(node), -1))
     }
     return res;
 }
@@ -120,11 +120,11 @@ export function convertPointFromNode(node, point, from, options) {
     const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes);
     const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, document.body, options?.iframes).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
-        point = transformPointBox(point, options.fromBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(from), 1);
+        point = transformPointBox(point, options.fromBox, getCachedComputedStyle(from), 1);
     }
     let res = m2.transformPoint(m1.transformPoint(point));
     if (options?.toBox && options?.toBox !== 'border' && (node instanceof Element || node instanceof (node.ownerDocument.defaultView ?? window).Element)) {
-        res = transformPointBox(res, options.toBox, (node.ownerDocument.defaultView ?? window).getComputedStyle(node), -1);
+        res = transformPointBox(res, options.toBox, getCachedComputedStyle(node), -1);
     }
     return res;
 }
@@ -154,6 +154,8 @@ let hash;
 let boxQuadsCache;
 /** @type { Map<string, DOMMatrix> } */
 let transformCache;
+/** @type { WeakMap<Node, CSSStyleDeclaration> } */
+let computedStyleCache;
 let hashId = 0;
 
 export function clearCache() {
@@ -165,6 +167,23 @@ export function useCache() {
     hash = new WeakMap();
     boxQuadsCache = new Map();
     transformCache = new Map();
+    computedStyleCache = new WeakMap
+}
+
+/**
+* @param {Element} element
+* @returns {CSSStyleDeclaration}
+*/
+function getCachedComputedStyle(element) {
+    if (!computedStyleCache) {
+        return (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
+    }
+    let style = computedStyleCache.get(element);
+    if (!style) {
+        style = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
+        computedStyleCache.set(element, style);
+    }
+    return style;
 }
 
 /**
@@ -200,13 +219,13 @@ export function getBoxQuads(node, options) {
     let o = null;
     if ((node instanceof Element || node instanceof (node.ownerDocument.defaultView ?? window).Element)) {
         if (options?.box === 'margin') {
-            const cs = (node.ownerDocument.defaultView ?? window).getComputedStyle(node);
+            const cs = getCachedComputedStyle(node);
             o = [{ x: parseFloat(cs.marginLeft), y: parseFloat(cs.marginTop) }, { x: -parseFloat(cs.marginRight), y: parseFloat(cs.marginTop) }, { x: -parseFloat(cs.marginRight), y: -parseFloat(cs.marginBottom) }, { x: parseFloat(cs.marginLeft), y: -parseFloat(cs.marginBottom) }];
         } else if (options?.box === 'padding') {
-            const cs = (node.ownerDocument.defaultView ?? window).getComputedStyle(node);
+            const cs = getCachedComputedStyle(node);
             o = [{ x: -parseFloat(cs.borderLeftWidth), y: -parseFloat(cs.borderTopWidth) }, { x: parseFloat(cs.borderRightWidth), y: -parseFloat(cs.borderTopWidth) }, { x: parseFloat(cs.borderRightWidth), y: parseFloat(cs.borderBottomWidth) }, { x: -parseFloat(cs.borderLeftWidth), y: parseFloat(cs.borderBottomWidth) }];
         } else if (options?.box === 'content') {
-            const cs = (node.ownerDocument.defaultView ?? window).getComputedStyle(node);
+            const cs = getCachedComputedStyle(node);
             o = [{ x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: -parseFloat(cs.borderTopWidth) - parseFloat(cs.paddingTop) }, { x: parseFloat(cs.borderRightWidth) + parseFloat(cs.paddingRight), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }, { x: -parseFloat(cs.borderLeftWidth) - parseFloat(cs.paddingLeft), y: parseFloat(cs.borderBottomWidth) + parseFloat(cs.paddingBottom) }];
         }
     }
@@ -292,12 +311,12 @@ export function getElementSize(node, matrix) {
 */
 function getElementOffsetsInContainer(node, includeScroll, iframes) {
     if ((node instanceof HTMLElement || node instanceof (node.ownerDocument.defaultView ?? window).HTMLElement)) {
-        let cs = (node.ownerDocument.defaultView ?? window).getComputedStyle(node);
+        let cs = getCachedComputedStyle(node);
         if (cs.offsetPath && cs.offsetPath !== 'none') {
             return new DOMPoint(0, 0);
         }
         if (includeScroll) {
-            const cs = (node.ownerDocument.defaultView ?? window).getComputedStyle(node);
+            const cs = getCachedComputedStyle(node);
             return new DOMPoint(node.offsetLeft - (includeScroll ? node.scrollLeft - parseFloat(cs.borderLeftWidth) : 0), node.offsetTop - (includeScroll ? node.scrollTop - parseFloat(cs.borderTopWidth) : 0));
         } else {
             return new DOMPoint(node.offsetLeft, node.offsetTop);
@@ -318,7 +337,7 @@ function getElementOffsetsInContainer(node, includeScroll, iframes) {
             const bb = node.getBBox();
             return new DOMPoint(bb.x, bb.y);
         }
-        const cs = (node.ownerDocument.defaultView ?? window).getComputedStyle(node);
+        const cs = getCachedComputedStyle(node);
         if (cs.position === 'absolute') {
             return new DOMPoint(parseFloat(cs.left), parseFloat(cs.top));
         }
@@ -363,7 +382,7 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
     let originalElementAndAllParentsMultipliedMatrix = getElementCombinedTransform(actualElement, iframes);
     let perspectiveParentElement = getParentElementIncludingSlots(actualElement, iframes);
     if (perspectiveParentElement) {
-        let s = (actualElement.ownerDocument.defaultView ?? window).getComputedStyle(perspectiveParentElement);
+        let s = getCachedComputedStyle(perspectiveParentElement);
         if (s.transformStyle !== 'preserve-3d') {
             projectTo2D(originalElementAndAllParentsMultipliedMatrix);
         }
@@ -373,14 +392,13 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
         const parentElement = getParentElementIncludingSlots(actualElement, iframes);
 
         if (actualElement.assignedSlot != null) {
-            const st = (perspectiveParentElement.ownerDocument.defaultView ?? window).getComputedStyle(actualElement);
+            const st = getCachedComputedStyle(actualElement);
             if (st.position !== "static") {
                 const mvMat = new DOMMatrix().translate(parseFloat(st.left), parseFloat(st.top));
                 originalElementAndAllParentsMultipliedMatrix = mvMat.multiply(originalElementAndAllParentsMultipliedMatrix);
             }
         }
         else {
-
             if ((actualElement instanceof HTMLElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLElement)) {
                 if (lastOffsetParent !== actualElement.offsetParent && !((actualElement instanceof HTMLSlotElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLSlotElement))) {
                     const offsets = getElementOffsetsInContainer(actualElement, actualElement !== node, iframes);
@@ -404,7 +422,7 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
 
             perspectiveParentElement = getParentElementIncludingSlots(parentElement, iframes);
             if (perspectiveParentElement) {
-                const s = (perspectiveParentElement.ownerDocument.defaultView ?? window).getComputedStyle(perspectiveParentElement);
+                const s = getCachedComputedStyle(perspectiveParentElement);
                 if (s.transformStyle !== 'preserve-3d') {
                     projectTo2D(originalElementAndAllParentsMultipliedMatrix);
                 }
@@ -457,7 +475,7 @@ export function getElementCombinedTransform(element, iframes) {
         return new DOMMatrix;
 
     //https://www.w3.org/TR/css-transforms-2/#ctm
-    let s = (element.ownerDocument.defaultView ?? window).getComputedStyle(element);
+    let s = getCachedComputedStyle(element);
 
     let m = new DOMMatrix();
     const origin = s.transformOrigin.split(' ');
@@ -545,7 +563,7 @@ function getElementPerspectiveTransform(element, iframes) {
     const perspectiveNode = getParentElementIncludingSlots(element, iframes);
     if (perspectiveNode) {
         //https://drafts.csswg.org/css-transforms-2/#perspective-matrix-computation
-        let s = (element.ownerDocument.defaultView ?? window).getComputedStyle(perspectiveNode);
+        let s = getCachedComputedStyle(perspectiveNode);
         if (s.perspective !== 'none') {
             let m = new DOMMatrix();
             let p = parseFloat(s.perspective);
@@ -567,7 +585,7 @@ function getElementPerspectiveTransform(element, iframes) {
 }
 
 function computeOffsetTransformMatrix(elem) {
-    const cs = (elem.ownerDocument.defaultView ?? window).getComputedStyle(elem);
+    const cs = getCachedComputedStyle(elem);
 
     const offsetPath = cs.offsetPath;          // e.g. "path('M0,0 ...')"
     const offsetDistance = cs.offsetDistance;  // e.g. "50%"
@@ -599,7 +617,7 @@ function computeOffsetTransformMatrix(elem) {
     m.multiplySelf(anchorMatrix.invertSelf());
     m.rotateSelf(rotateFinal);
     m.translateSelf(-anchor.x, -anchor.y);
-    
+
     return m;
 }
 
