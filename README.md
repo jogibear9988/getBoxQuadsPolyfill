@@ -26,9 +26,10 @@ following API's are supported:
     getBoxQuads(element: Element, options?: { box: 'margin' | 'border' | 'padding' | 'content', relativeTo: Element, iframes?: HTMLIFrameElement[] })
 
 
+    getResultingTransformationBetweenElementAndAllAncestors(node: Node, ancestor: Node) -> get the complete transformation-matrix between the node and the anchestor
     getElementSize(node: Node) -> cause of missing offsetWidth in other node types
 
-the API do have a non standard parameter "iframes", in wich you can hand over iframe objects in wich your elments are embeded in. This is not needed in the browser native API, but in the polyfill, the element inside of an iframe could not access it's container.
+the API do have a non standard parameter "iframes", in wich you can hand over iframe objects in wich your elements are embeded in. This is not needed in the browser native API, but in the polyfill, the element inside of an iframe could not access it's container.
 
 additionaly there are:
 
