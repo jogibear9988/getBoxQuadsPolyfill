@@ -390,7 +390,7 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
     }
     let lastOffsetParent = null;
     while (actualElement != ancestor && actualElement != null) {
-        const parentElement = getParentElementIncludingSlots(actualElement, iframes);
+        let parentElement = getParentElementIncludingSlots(actualElement, iframes);
 
         if (actualElement.assignedSlot != null) {
             const l = offsetTopLeftPolyfill(actualElement, 'offsetLeft');
@@ -398,7 +398,15 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
             const mvMat = new DOMMatrix().translateSelf(l, t);
             originalElementAndAllParentsMultipliedMatrix = mvMat.multiplySelf(originalElementAndAllParentsMultipliedMatrix);
         } else {
-            if ((actualElement instanceof HTMLElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLElement)) {
+            if (!(actualElement instanceof SVGSVGElement) && !(actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).SVGSVGElement) &&
+                (actualElement instanceof SVGGraphicsElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).SVGGraphicsElement)) {
+                const ctm = actualElement.getCTM();
+                const bb = actualElement.getBBox();
+                const mvMat = new DOMMatrix().translateSelf(bb.x, bb.y);
+                originalElementAndAllParentsMultipliedMatrix = mvMat.multiplySelf(originalElementAndAllParentsMultipliedMatrix);
+                originalElementAndAllParentsMultipliedMatrix = new DOMMatrix([ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f]).multiplySelf(originalElementAndAllParentsMultipliedMatrix);
+                parentElement = actualElement.ownerSVGElement;
+            } else if ((actualElement instanceof HTMLElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLElement)) {
                 if (lastOffsetParent !== actualElement.offsetParent && !((actualElement instanceof HTMLSlotElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLSlotElement))) {
                     const offsets = getElementOffsetsInContainer(actualElement, actualElement !== node, iframes);
                     lastOffsetParent = actualElement.offsetParent;
@@ -482,7 +490,7 @@ export function getElementCombinedTransform(element, iframes) {
     const originY = parseFloat(origin[1]);
     const originZ = origin[2] ? parseFloat(origin[2]) : 0;
 
-    const mOri = new DOMMatrix().translate(originX, originY, originZ);
+    const mOri = new DOMMatrix().translateSelf(originX, originY, originZ);
 
     if (s.translate != 'none' && s.translate) {
         let tr = s.translate;
@@ -507,7 +515,7 @@ export function getElementCombinedTransform(element, iframes) {
         m.multiplySelf(new DOMMatrix(s.transform));
     }
 
-    m = mOri.multiply(m.multiply(mOri.inverse()));
+    m = mOri.multiply(m.multiplySelf(mOri.inverse()));
 
     if (s.offsetPath && s.offsetPath !== 'none') {
         m.multiplySelf(computeOffsetTransformMatrix(element));
@@ -516,7 +524,7 @@ export function getElementCombinedTransform(element, iframes) {
     //@ts-ignore
     const pt = getElementPerspectiveTransform(element, iframes);
     if (pt != null) {
-        m = pt.multiply(m);
+        m = pt.multiplySelf(m);
     }
     return m;
 }
@@ -573,10 +581,10 @@ function getElementPerspectiveTransform(element, iframes) {
                 const originX = parseFloat(origin[0]) - element.offsetLeft;
                 const originY = parseFloat(origin[1]) - element.offsetTop;
 
-                const mOri = new DOMMatrix().translate(originX, originY);
-                const mOriInv = new DOMMatrix().translate(-originX, -originY);
+                const mOri = new DOMMatrix().translateSelf(originX, originY);
+                const mOriInv = new DOMMatrix().translateSelf(-originX, -originY);
 
-                return mOri.multiply(m.multiply(mOriInv));
+                return mOri.multiplySelf(m.multiplySelf(mOriInv));
             }
         }
     }
