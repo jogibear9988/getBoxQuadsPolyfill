@@ -1,0 +1,205 @@
+<html>
+
+<head>
+    <title>getBoxQuads Test</title>
+    <style>
+        svg {
+            fill: rgba(255, 166, 0, 0.205);
+            stroke: orange;
+            stroke-dasharray: 2;
+            overflow: visible;
+        }
+
+        svg rect {
+            fill: blue;
+        }
+    </style>
+</head>
+
+<body>
+    <template id="wc-test-template">
+        <div style="width: 100%; height: 100%; position: absolute">
+            <div
+                style="z-index: 1; position: absolute; left: 50px; top: 5px; width: 100px; height: 50px; rotate: -45deg; background: lightpink;">
+                WC-test
+                <slot></slot>
+            </div>
+        </div>
+    </template>
+
+    <div
+        style="z-index: -1; position: fixed; right: 5px; top: 20px; width: 400px; height: 200px; background: lightblue;">
+        <div style="position: absolute; right: 5px; top: 5px; color: gray; font-weight: 800;">Click Overlay</div>
+        <svg id="click-overlay" style="position: absolute; left: 0px; top: 0px; pointer-events: none;"></svg>
+    </div>
+    <div style="display: flex; flex-direction: column;">
+        Options:
+        <select id="type" style="width: 300px;">
+            <option>margin</option>
+            <option selected>border</option>
+            <option>padding</option>
+            <option>content</option>
+            <option>text</option>
+            <option>none</option>
+        </select>
+        <div>
+            The Overlays in the SVG are calculated via getBoxQuads and then drawn into an overlay layer<br><br>
+            See the SVG Element and MathML Elemnts have a wrong overlay. They only works correctly in Firefox, when you
+            enable the
+            native getBoxQuads API. It's cause we display in a grid, so I don't know the offset in the control, and it
+            could not be calculated via getBoundingClientRect cause of the rotation.<br><br>
+            This could be fixed if the browsers support offsetLeft & top for all elements, or natively support
+            getBoxQuads.<br><br>
+            In the "Click Overlay" you see the clicked element in transformed coordinates.
+        </div>
+    </div>
+    <div id="root"
+        style="position: relative; left: 50px; top: 100px; background-color: #b0c4de40; width: 100%; height: 200%;">
+        <div id="container" style="position: absolute; left: 0px; top: 0px; opacity: 0.4;">
+            <button
+                style="
+                    --total: 12;
+                    --i: 9;
+                    --offset: calc(var(--i) / var(--total) * 100%);
+                    --delta: 0%;
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 10px;
+                    offset-rotate: 0deg;
+                    offset-path: rect(50px 150px 200px 50px);
+                    offset-distance: 0;
+                    transition: offset-distance 0.2s ease;
+                    position: relative;">Test
+                simple</button>
+            <button
+                style="
+                    --total: 12;
+                    --i: 9;
+                    --offset: calc(var(--i) / var(--total) * 100%);
+                    --delta: 0%;
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 10px;
+                    offset-rotate: 0deg;
+                    offset-path: circle(100px at 150px 150px);
+                    offset-distance: calc(var(--offset) + var(--delta));
+                    transition: offset-distance 0.2s ease;
+                    position: relative;">Test
+                Offset Path complex</button>
+                <button
+                style="
+                    --total: 12;
+                    --i: 10;
+                    --offset: calc(var(--i) / var(--total) * 100%);
+                    --delta: 0%;
+                    rotate: -15deg;
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 10px;
+                    offset-rotate: 0deg;
+                    offset-path: circle(100px at 150px 150px);
+                    offset-distance: calc(var(--offset) + var(--delta));
+                    transition: offset-distance 0.2s ease;
+                    left: 50px;
+                    position: relative;">Test
+                Offset Path complex 2</button>
+        </div>
+        <svg id="overlay" style="position: absolute; left: 0px; top: 0px; pointer-events: none;"></svg>
+    </div>
+</body>
+<script type="module">
+    import { addPolyfill } from './getBoxQuads.js';
+    addPolyfill();
+
+
+    //A webcomponent for test of shadowdom support
+    let wcContents = [];
+    customElements.define(
+        "wc-test",
+        class WcTest extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                const template = (
+                    document.getElementById("wc-test-template")
+                );
+                let wcContent = template.content.cloneNode(true).children[0];
+                wcContents.push(wcContent);
+                shadowRoot.appendChild(wcContent);
+            }
+        }
+    );
+    // End of webcomponent
+
+    const overlay = document.getElementById('overlay');
+    const root = document.getElementById('root');
+    /** @type {HTMLSelectElement } */
+    const type = document.getElementById('type');
+    type.onchange = () => {
+        draw();
+    }
+
+    root.onclick = (e) => {
+        const ctl = e.composedPath()[0];
+        if (ctl == overlay)
+            return;
+
+        const bcr = root.getBoundingClientRect();
+
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        const p = ctl.convertPointFromNode(new DOMPoint(e.x - bcr.left, e.y - bcr.top), root, { fromBox: 'border', toBox: type.value });
+
+        if (window.webkitConvertPointFromNodeToPage) {
+            let wp = new WebKitPoint(e.x, e.y);
+            let p2 = webkitConvertPointFromNodeToPage(root, wp);
+            let p3 = webkitConvertPointFromPageToNode(ctl, p2);
+            console.log("conv point", wp, p, p3);
+        }
+
+
+        rect.setAttribute("x", p.x - 5);
+        rect.setAttribute("y", p.y - 5);
+        rect.setAttribute("width", 10);
+        rect.setAttribute("height", 10);
+
+        const cov = document.getElementById('click-overlay');
+        cov.appendChild(rect);
+        setTimeout(() => {
+            rect.remove()
+        }, 500);
+    }
+
+    function draw() {
+        overlay.innerHTML = "";
+        if (type.value === 'none')
+            return;
+        const ct = document.getElementById('container');
+        if (type.value === 'text') {
+            const iter = document.createNodeIterator(ct, NodeFilter.SHOW_TEXT);
+            let e;
+            while (e = iter.nextNode()) {
+                const pp = e.getBoxQuads({ box: 'border', relativeTo: root });
+                for (let p of pp) {
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+                    path.setAttribute("d", d);
+                    overlay.appendChild(path);
+                }
+            }
+        } else {
+            const all = Array.from(ct.querySelectorAll('*'));
+            all.push(...wcContents.map(x => x.children[0]));
+            all.push(ct.firstChild);
+            for (let e of all) {
+                const p = e.getBoxQuads({ box: type.value, relativeTo: root })[0];
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+                path.setAttribute("d", d);
+                overlay.appendChild(path);
+            }
+        }
+    }
+    draw();
+</script>
+
+</html>
