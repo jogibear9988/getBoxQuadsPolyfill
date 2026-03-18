@@ -925,7 +925,7 @@ function computeCircle(str, t) {
     let r = parseFloat(radiusPart);
     let [cx, cy] = atPart.split(/\s+/).map(parseFloat);
 
-    let angleRad = t * 2 * Math.PI;
+    let angleRad = t * 2 * Math.PI - Math.PI / 2;
     let x = cx + Math.cos(angleRad) * r;
     let y = cy + Math.sin(angleRad) * r;
 
@@ -945,7 +945,7 @@ function computeEllipse(str, t) {
     let cx = center[0];
     let cy = center[1];
 
-    let angleRad = t * 2 * Math.PI;
+    let angleRad = t * 2 * Math.PI - Math.PI / 2;
 
     let x = cx + Math.cos(angleRad) * rx;
     let y = cy + Math.sin(angleRad) * ry;
@@ -1216,24 +1216,25 @@ function evalCalc(ast, env) {
     throw "Invalid AST node " + ast.type;
 }
 
-function resolveLength(expr, element) {
+function resolveLength(expr, element, useHeight = false) {
     expr = expr.trim();
 
     // Fast path: pure px
     if (/^[0-9.]+px$/.test(expr))
         return parseFloat(expr);
 
+    let base = useHeight ? element.offsetHeight : element.offsetWidth;
+
     // Pure %
     if (/^[0-9.]+%$/.test(expr)) {
         let p = parseFloat(expr);
-        let base = element.offsetWidth;            // <- width reference
         return base * (p / 100);
     }
 
     // calc(...) or mixed values
     const ast = parseCalc(tokenizeCalc(expr));
     return evalCalc(ast, {
-        percentBase: element.offsetWidth
+        percentBase: base
     });
 }
 
@@ -1283,8 +1284,10 @@ function computeInset(str, element, progress) {
     if (args.length !== 4)
         throw new Error("inset() must have 4 arguments");
 
-    const [topPx, rightPx, bottomPx, leftPx] =
-        args.map(a => resolveLength(a, element));
+    const topPx = resolveLength(args[0], element, true);
+    const rightPx = resolveLength(args[1], element, false);
+    const bottomPx = resolveLength(args[2], element, true);
+    const leftPx = resolveLength(args[3], element, false);
 
     const w = element.offsetWidth;
     const h = element.offsetHeight;
