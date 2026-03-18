@@ -75,14 +75,17 @@ export function patchAdoptNode(windowObj = window) {
 * @returns {DOMQuad}
 */
 export function convertQuadFromNode(node, quad, from, options) {
-    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, document.body, options?.iframes);
-    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, document.body, options?.iframes).inverse();
+    const ancestor = (node.ownerDocument.defaultView ?? window).document.body;
+    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, ancestor, options?.iframes);
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, ancestor, options?.iframes).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
-        quad = new DOMQuad(transformPointBox(quad.p1, options.fromBox, getCachedComputedStyle(from), -1), transformPointBox(quad.p2, options.fromBox, getCachedComputedStyle(from), -1), transformPointBox(quad.p3, options.fromBox, getCachedComputedStyle(from), -1), transformPointBox(quad.p4, options.fromBox, getCachedComputedStyle(from), -1))
+        const fromStyle = getCachedComputedStyle(from);
+        quad = new DOMQuad(transformPointBox(quad.p1, options.fromBox, fromStyle, -1), transformPointBox(quad.p2, options.fromBox, fromStyle, -1), transformPointBox(quad.p3, options.fromBox, fromStyle, -1), transformPointBox(quad.p4, options.fromBox, fromStyle, -1))
     }
     let res = new DOMQuad(m2.transformPoint(m1.transformPoint(quad.p1)), m2.transformPoint(m1.transformPoint(quad.p2)), m2.transformPoint(m1.transformPoint(quad.p3)), m2.transformPoint(m1.transformPoint(quad.p4)));
     if (options?.toBox && options?.toBox !== 'border' && (node instanceof Element || node instanceof (node.ownerDocument.defaultView ?? window).Element)) {
-        res = new DOMQuad(transformPointBox(res.p1, options.toBox, getCachedComputedStyle(node), -1), transformPointBox(res.p2, options.toBox, getCachedComputedStyle(node), -1), transformPointBox(res.p3, options.toBox, getCachedComputedStyle(node), -1), transformPointBox(res.p4, options.toBox, getCachedComputedStyle(node), -1))
+        const nodeStyle = getCachedComputedStyle(node);
+        res = new DOMQuad(transformPointBox(res.p1, options.toBox, nodeStyle, -1), transformPointBox(res.p2, options.toBox, nodeStyle, -1), transformPointBox(res.p3, options.toBox, nodeStyle, -1), transformPointBox(res.p4, options.toBox, nodeStyle, -1))
     }
     return res;
 
@@ -96,15 +99,17 @@ export function convertQuadFromNode(node, quad, from, options) {
 * @returns {DOMQuad}
 */
 export function convertRectFromNode(node, rect, from, options) {
-    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes);
-    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes).inverse();
+    const ancestor = (node.ownerDocument.defaultView ?? window).document.body.parentElement;
+    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, ancestor, options?.iframes);
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, ancestor, options?.iframes).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
         const p = transformPointBox(new DOMPoint(rect.x, rect.y), options.fromBox, getCachedComputedStyle(from), 1);
         rect = new DOMRect(p.x, p.y, rect.width, rect.height);
     }
     let res = new DOMQuad(m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x, rect.y))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x + rect.width, rect.y))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x + rect.width, rect.y + rect.height))), m2.transformPoint(m1.transformPoint(new DOMPoint(rect.x, rect.y + rect.height))));
     if (options?.toBox && options?.toBox !== 'border' && (node instanceof Element || node instanceof (node.ownerDocument.defaultView ?? window).Element)) {
-        res = new DOMQuad(transformPointBox(res.p1, options.toBox, getCachedComputedStyle(node), -1), transformPointBox(res.p2, options.toBox, getCachedComputedStyle(node), -1), transformPointBox(res.p3, options.toBox, getCachedComputedStyle(node), -1), transformPointBox(res.p4, options.toBox, getCachedComputedStyle(node), -1))
+        const nodeStyle = getCachedComputedStyle(node);
+        res = new DOMQuad(transformPointBox(res.p1, options.toBox, nodeStyle, -1), transformPointBox(res.p2, options.toBox, nodeStyle, -1), transformPointBox(res.p3, options.toBox, nodeStyle, -1), transformPointBox(res.p4, options.toBox, nodeStyle, -1))
     }
     return res;
 }
@@ -117,8 +122,9 @@ export function convertRectFromNode(node, rect, from, options) {
 * @returns {DOMPoint}
 */
 export function convertPointFromNode(node, point, from, options) {
-    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, (node.ownerDocument.defaultView ?? window).document.body.parentElement, options?.iframes);
-    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, document.body, options?.iframes).inverse();
+    const ancestor = (node.ownerDocument.defaultView ?? window).document.body.parentElement;
+    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, ancestor, options?.iframes);
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, ancestor, options?.iframes).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
         point = transformPointBox(point, options.fromBox, getCachedComputedStyle(from), 1);
     }
@@ -296,7 +302,7 @@ export function getElementSize(node, matrix) {
         width = bbox.width / (matrix?.a ?? 1);
         height = bbox.height / (matrix?.d ?? 1);
     } else if ((node instanceof Text || node instanceof (node.ownerDocument.defaultView ?? window).Text)) {
-        const range = document.createRange();
+        const range = node.ownerDocument.createRange();
         range.selectNodeContents(node);
         const targetRect = range.getBoundingClientRect();
         width = targetRect.width / (matrix?.a ?? 1);
@@ -312,18 +318,17 @@ export function getElementSize(node, matrix) {
 */
 function getElementOffsetsInContainer(node, includeScroll, iframes) {
     if ((node instanceof HTMLElement || node instanceof (node.ownerDocument.defaultView ?? window).HTMLElement)) {
-        let cs = getCachedComputedStyle(node);
+        const cs = getCachedComputedStyle(node);
         /*if (cs.offsetPath && cs.offsetPath !== 'none') {
             return new DOMPoint(0, 0);
         }*/
         if (includeScroll) {
-            const cs = getCachedComputedStyle(node);
-            return new DOMPoint(node.offsetLeft - (includeScroll ? node.scrollLeft - parseFloat(cs.borderLeftWidth) : 0), node.offsetTop - (includeScroll ? node.scrollTop - parseFloat(cs.borderTopWidth) : 0));
+            return new DOMPoint(node.offsetLeft - (node.scrollLeft - parseFloat(cs.borderLeftWidth)), node.offsetTop - (node.scrollTop - parseFloat(cs.borderTopWidth)));
         } else {
             return new DOMPoint(node.offsetLeft, node.offsetTop);
         }
     } else if ((node instanceof Text || node instanceof (node.ownerDocument.defaultView ?? window).Text)) {
-        const range = document.createRange();
+        const range = node.ownerDocument.createRange();
         range.selectNodeContents(node);
         const r1 = range.getBoundingClientRect();
         /** @type {HTMLElement} */
@@ -1298,21 +1303,21 @@ function computeInset(str, element, progress) {
     // Walk the rectangle clockwise, return point
     // Top edge: (x1 → x2, y1)
     let len = x2 - x1;
-    if (d <= len) return { x: x1 + d, y: y1 };
+    if (d <= len) return { x: x1 + d, y: y1, angle: 0 };
     d -= len;
 
     // Right edge: (x2, y1 → y2)
     len = y2 - y1;
-    if (d <= len) return { x: x2, y: y1 + d };
+    if (d <= len) return { x: x2, y: y1 + d, angle: 90 };
     d -= len;
 
     // Bottom edge: (x2 → x1, y2)
     len = x2 - x1;
-    if (d <= len) return { x: x2 - d, y: y2 };
+    if (d <= len) return { x: x2 - d, y: y2, angle: 180 };
     d -= len;
 
     // Left edge: (x1, y2 → y1)
-    return { x: x1, y: y2 - d };
+    return { x: x1, y: y2 - d, angle: 270 };
 }
 
 
