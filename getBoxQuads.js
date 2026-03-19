@@ -237,6 +237,7 @@ export function getBoxQuads(node, options) {
         }
     }
 
+    const is2D = originalElementAndAllParentsMultipliedMatrix.is2D;
     for (let i = 0; i < 4; i++) {
         /** @type { DOMPoint } */
         let p;
@@ -245,8 +246,12 @@ export function getBoxQuads(node, options) {
         else
             p = new DOMPoint(arr[i].x - o[i].x, arr[i].y - o[i].y);
 
-        points[i] = projectPoint(p, originalElementAndAllParentsMultipliedMatrix).matrixTransform(originalElementAndAllParentsMultipliedMatrix);
-        points[i] = as2DPoint(points[i]);
+        if (is2D) {
+            points[i] = p.matrixTransform(originalElementAndAllParentsMultipliedMatrix);
+        } else {
+            points[i] = projectPoint(p, originalElementAndAllParentsMultipliedMatrix).matrixTransform(originalElementAndAllParentsMultipliedMatrix);
+            points[i] = as2DPoint(points[i]);
+        }
     }
 
     const quad = [new DOMQuad(points[0], points[1], points[2], points[3])];
@@ -456,7 +461,7 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
         if (parentElement) {
             parentElementMatrix = getElementCombinedTransform(parentElement, iframes);
 
-            if (parentElement != ancestor)
+            if (parentElement != ancestor && !parentElementMatrix.isIdentity)
                 originalElementAndAllParentsMultipliedMatrix = parentElementMatrix.multiply(originalElementAndAllParentsMultipliedMatrix);
 
             perspectiveParentElement = getParentElementIncludingSlots(parentElement, iframes);
@@ -641,6 +646,19 @@ export function getElementCombinedTransform(element, iframes) {
     //https://www.w3.org/TR/css-transforms-2/#ctm
     let s = getCachedComputedStyle(element);
 
+    // Fast path: skip all matrix work when no CSS transforms are applied
+    const hasTranslate = s.translate != 'none' && s.translate;
+    const hasRotate = s.rotate != 'none' && s.rotate;
+    const hasScale = s.scale != 'none' && s.scale;
+    const hasOffsetPath = s.offsetPath && s.offsetPath !== 'none';
+    const hasTransform = s.transform != 'none' && s.transform;
+
+    if (!hasTranslate && !hasRotate && !hasScale && !hasOffsetPath && !hasTransform) {
+        //@ts-ignore
+        const pt = getElementPerspectiveTransform(element, iframes);
+        return pt != null ? pt : new DOMMatrix();
+    }
+
     let m = new DOMMatrix();
     const origin = s.transformOrigin.split(' ');
     const originX = parseFloat(origin[0]);
@@ -649,7 +667,7 @@ export function getElementCombinedTransform(element, iframes) {
 
     const mOri = new DOMMatrix().translateSelf(originX, originY, originZ);
 
-    if (s.translate != 'none' && s.translate) {
+    if (hasTranslate) {
         let tr = s.translate;
         if (tr.includes('%')) {
             const v = tr.split(' ');
@@ -662,18 +680,18 @@ export function getElementCombinedTransform(element, iframes) {
         }
         m.multiplySelf(new DOMMatrix('translate(' + tr.replaceAll(' ', ',') + ')'));
     }
-    if (s.rotate != 'none' && s.rotate) {
+    if (hasRotate) {
         m.multiplySelf(new DOMMatrix('rotate(' + s.rotate.replaceAll(' ', ',') + ')'));
     }
-    if (s.scale != 'none' && s.scale) {
+    if (hasScale) {
         m.multiplySelf(new DOMMatrix('scale(' + s.scale.replaceAll(' ', ',') + ')'));
     }
 
-    if (s.offsetPath && s.offsetPath !== 'none') {
+    if (hasOffsetPath) {
         m.multiplySelf(computeOffsetTransformMatrix(element));
     }
 
-    if (s.transform != 'none' && s.transform) {
+    if (hasTransform) {
         m.multiplySelf(new DOMMatrix(s.transform));
     }
 
