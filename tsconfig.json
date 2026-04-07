@@ -3,9 +3,11 @@
     "noEmit": true,
     "checkJs": true,
     "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "Node",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "allowJs": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
   }
 }
