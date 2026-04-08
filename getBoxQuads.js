@@ -215,6 +215,85 @@ export function getBoxQuads(node, options) {
 
     /** @type {DOMMatrix} */
     let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(node, options?.relativeTo ?? document.body, options?.iframes);
+
+    // For text nodes, check for multiple fragments (multi-column layout, line-wrapping).
+    // getClientRects() returns one rect per line-box fragment; getBoundingClientRect()
+    // only returns the union AABB, so without this we'd always get one quad.
+    if ((node instanceof Text || node instanceof (node.ownerDocument.defaultView ?? window).Text)) {
+        const range = node.ownerDocument.createRange();
+        range.selectNodeContents(node);
+        const clientRects = range.getClientRects();
+        if (clientRects.length > 1) {
+            const relativeToEl = options?.relativeTo ?? document.body;
+            // Work via the parent element so rotation is handled correctly.
+            // Each fragment's viewport rect (from getClientRects) is an AABB;
+            // its center equals the actual geometric center regardless of rotation.
+            // We convert that center to parent-local space, recover the fragment's
+            // local dimensions via the 2×2 AABB system, then apply the parent's
+            // accumulated matrix to build proper (rotated) quads in relativeTo-space.
+            const parent = getParentElementIncludingSlots(node, options?.iframes);
+            const M_parent = getResultingTransformationBetweenElementAndAllAncestors(parent, relativeToEl, options?.iframes);
+
+            const parentCss = getElementCombinedTransform(parent, options?.iframes);
+            const parentStyle = getCachedComputedStyle(parent);
+            const originStr = parentStyle.transformOrigin.split(' ');
+            const ox = parseFloat(originStr[0]) || 0;
+            const oy = parseFloat(originStr[1]) || 0;
+            const pr = parent.getBoundingClientRect();
+            // Screen position of parent's local (0,0) — same formula as getElementOffsetsInContainer
+            const parentOriginX = (pr.x + pr.width  / 2) - ox + parentCss.e;
+            const parentOriginY = (pr.y + pr.height / 2) - oy + parentCss.f;
+
+            const pa = parentCss.a, pb = parentCss.b, pc = parentCss.c, pd = parentCss.d;
+            const linearDet = pa * pd - pb * pc;
+            const absA = Math.abs(pa), absB = Math.abs(pb);
+            const absDet = absA * absA - absB * absB;
+
+            const quads = [];
+            for (const cr of clientRects) {
+                if (cr.width < 1 && cr.height < 1) continue;
+
+                // Fragment AABB center → parent-local center via inverse CSS transform
+                const dx = cr.x + cr.width  / 2 - parentOriginX;
+                const dy = cr.y + cr.height / 2 - parentOriginY;
+                let lcx, lcy;
+                if (Math.abs(linearDet) > 1e-10) {
+                    lcx = (pd * dx - pc * dy) / linearDet;
+                    lcy = (pa * dy - pb * dx) / linearDet;
+                } else {
+                    lcx = dx; lcy = dy;
+                }
+
+                // Fragment dimensions in parent-local via 2×2 AABB system
+                let tw, th;
+                if (Math.abs(absDet) > 1e-6) {
+                    tw = Math.max(0, (absA * cr.width  - absB * cr.height) / absDet);
+                    th = Math.max(0, (absA * cr.height - absB * cr.width)  / absDet);
+                } else {
+                    // Singular (≈45°): use CSS line-height as th
+                    const cs = getCachedComputedStyle(parent);
+                    th = Math.max(0, parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2 || 16);
+                    const denom = Math.max(absA, absB);
+                    tw = denom > 1e-6 ? Math.max(0, (cr.width - th * absB) / denom) : cr.width;
+                }
+
+                // Fragment top-left in parent-local, then transform all 4 corners via M_parent
+                const lx = lcx - tw / 2, ly = lcy - th / 2;
+                quads.push(new DOMQuad(
+                    M_parent.transformPoint(new DOMPoint(lx,      ly)),
+                    M_parent.transformPoint(new DOMPoint(lx + tw, ly)),
+                    M_parent.transformPoint(new DOMPoint(lx + tw, ly + th)),
+                    M_parent.transformPoint(new DOMPoint(lx,      ly + th))
+                ));
+            }
+
+            if (quads.length > 0) {
+                if (boxQuadsCache) boxQuadsCache.set(key, quads);
+                return quads;
+            }
+        }
+    }
+
     let { width, height } = getElementSize(node, originalElementAndAllParentsMultipliedMatrix);
 
     let arr = [{ x: 0, y: 0 }, { x: width, y: 0 }, { x: width, y: height }, { x: 0, y: height }];
