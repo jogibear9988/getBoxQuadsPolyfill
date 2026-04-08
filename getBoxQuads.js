@@ -310,8 +310,28 @@ export function getElementSize(node, matrix) {
         const range = node.ownerDocument.createRange();
         range.selectNodeContents(node);
         const targetRect = range.getBoundingClientRect();
-        width = targetRect.width / (matrix?.a ?? 1);
-        height = targetRect.height / (matrix?.d ?? 1);
+        // Use the accumulated matrix's linear part (a=cos*scale, b=sin*scale) to solve
+        // the AABB system:  aabb_w = tw*|a| + th*|b|,  aabb_h = tw*|b| + th*|a|
+        const absA = Math.abs(matrix?.a ?? 1);
+        const absB = Math.abs(matrix?.b ?? 0);
+        const det = absA * absA - absB * absB; // cos(2*angle)*scale²
+        if (Math.abs(det) > 1e-6) {
+            width  = Math.max(0, (absA * targetRect.width  - absB * targetRect.height) / det);
+            height = Math.max(0, (absA * targetRect.height - absB * targetRect.width)  / det);
+        } else {
+            // Singular (≈45° rotation): use CSS line-height as the known height
+            const parentEl = node.parentElement;
+            let lineH = 16;
+            if (parentEl) {
+                const cs = getCachedComputedStyle(parentEl);
+                lineH = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2 || 16;
+            }
+            height = Math.max(0, lineH);
+            const denom = Math.max(absA, absB);
+            width = denom > 1e-6
+                ? Math.max(0, (targetRect.width - height * absB) / denom)
+                : targetRect.width;
+        }
     }
     return { width, height }
 }
@@ -340,9 +360,59 @@ function getElementOffsetsInContainer(node, includeScroll, iframes) {
         //@ts-ignore
         const parent = getParentElementIncludingSlots(node, iframes);
         const r2 = parent.getBoundingClientRect();
-        const zX = parent.offsetWidth / r2.width;
-        const zY = parent.offsetHeight / r2.height;
-        return new DOMPoint((r1.x - r2.x) * zX, (r1.y - r2.y) * zY);
+
+        // Get the parent's CSS transform so we can work in local space even when rotated.
+        const pt = getElementCombinedTransform(parent, iframes);
+        const pa = pt.a, pb = pt.b, pc = pt.c, pd = pt.d;
+
+        // The AABB center of a rotated rectangle equals its geometric center, so
+        // text_center_screen = parent_local_origin_screen + L * (lx + tw/2, ly + th/2)
+        // where L is the linear part of the parent's CSS transform.
+        //
+        // parent_local_origin_screen = AABB_center - transform_origin + M_css.transformPoint(0,0)
+        //   (the AABB center equals the transform origin in screen space for rotation)
+        const parentStyle = getCachedComputedStyle(parent);
+        const originStr = parentStyle.transformOrigin.split(' ');
+        const ox = parseFloat(originStr[0]) || 0;
+        const oy = parseFloat(originStr[1]) || 0;
+        // pt.e/f = M_css.transformPoint(0,0) — the offset of local (0,0) from pre-transform pos
+        const parentOriginX = (r2.x + r2.width  / 2) - ox + pt.e;
+        const parentOriginY = (r2.y + r2.height / 2) - oy + pt.f;
+
+        // Delta from parent origin to text AABB center in screen space
+        const dx = (r1.x + r1.width  / 2) - parentOriginX;
+        const dy = (r1.y + r1.height / 2) - parentOriginY;
+
+        // Apply inverse of CSS transform linear part: local_center = L⁻¹ * screen_delta
+        const transformDet = pa * pd - pb * pc;
+        let localCenterX, localCenterY;
+        if (Math.abs(transformDet) > 1e-10) {
+            localCenterX = (pd * dx - pc * dy) / transformDet;
+            localCenterY = (pa * dy - pb * dx) / transformDet;
+        } else {
+            localCenterX = dx;
+            localCenterY = dy;
+        }
+
+        // Recover tw and th in local space from the AABB using the 2×2 system:
+        //   aabb_w = tw*|cos| + th*|sin|,  aabb_h = tw*|sin| + th*|cos|
+        const absA = Math.abs(pa), absB = Math.abs(pb);
+        const absDet = absA * absA - absB * absB;
+        let tw, th;
+        if (Math.abs(absDet) > 1e-6) {
+            tw = Math.max(0, (absA * r1.width  - absB * r1.height) / absDet);
+            th = Math.max(0, (absA * r1.height - absB * r1.width)  / absDet);
+        } else {
+            // Singular (≈45°): use CSS line-height as th
+            const cs = getCachedComputedStyle(parent);
+            th = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2 || 16;
+            th = Math.max(0, th);
+            const denom = Math.max(absA, absB);
+            tw = denom > 1e-6 ? Math.max(0, (r1.width - th * absB) / denom) : r1.width;
+        }
+
+        // local origin = center minus half-dimensions
+        return new DOMPoint(localCenterX - tw / 2, localCenterY - th / 2);
     } else if ((node instanceof Element || node instanceof (node.ownerDocument.defaultView ?? window).Element)) {
         if ((node instanceof SVGGraphicsElement || node instanceof (node.ownerDocument.defaultView ?? window).SVGGraphicsElement) && !((node instanceof SVGSVGElement || node instanceof (node.ownerDocument.defaultView ?? window).SVGSVGElement))) {
             const bb = node.getBBox();
