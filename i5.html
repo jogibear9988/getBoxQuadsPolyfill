@@ -1,0 +1,24 @@
+<html>
+
+<head>
+    <title>getBoxQuads Test</title>
+
+</head>
+
+<body>
+    <button id="a">Hallo</button>
+</body>
+<script type="module">
+    import { addPolyfill } from './getBoxQuads.js';
+    addPolyfill();
+
+    const button = document.getElementById('a');
+    const p = button.getBoxQuads();
+    console.log(p);
+    const p2 = button.getBoxQuads({ box: "content" });
+    console.log(p2);
+    const p3 = button.getBoxQuads({ box: "padding" });
+    console.log(p3);
+</script>
+
+</html>
