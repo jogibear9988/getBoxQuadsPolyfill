@@ -593,14 +593,7 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
                 originalElementAndAllParentsMultipliedMatrix = new DOMMatrix([ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f]).multiplySelf(originalElementAndAllParentsMultipliedMatrix);
                 parentElement = actualElement.ownerSVGElement;
             } else if ((actualElement instanceof HTMLElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLElement)) {
-                const aeCs = getCachedComputedStyle(actualElement);
-                const hasActiveOffsetPath = aeCs.offsetPath && aeCs.offsetPath !== 'none';
-                if (hasActiveOffsetPath) {
-                    // offset-path positions the element absolutely within its containing block.
-                    // The CSS combined transform already encodes this position, so skip
-                    // adding offsetLeft/offsetTop which would double-count the position.
-                    // Do NOT update lastOffsetParent so ancestor offsets are added correctly.
-                } else if (lastOffsetParent !== actualElement.offsetParent && !((actualElement instanceof HTMLSlotElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLSlotElement))) {
+                if (lastOffsetParent !== actualElement.offsetParent && !((actualElement instanceof HTMLSlotElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLSlotElement))) {
                     const offsets = getElementOffsetsInContainer(actualElement, actualElement !== node, iframes);
                     lastOffsetParent = actualElement.offsetParent;
                     const mvMat = new DOMMatrix().translateSelf(offsets.x, offsets.y);
@@ -629,6 +622,15 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
             }
 
             if (parentElement === ancestor) {
+                // When accumulated offsets are relative to an offsetParent above the ancestor,
+                // subtract the ancestor's own offset (relative to that same offsetParent)
+                // to convert from offsetParent-relative to ancestor-relative coordinates.
+                if (lastOffsetParent !== null &&
+                    (parentElement instanceof HTMLElement || parentElement instanceof (parentElement.ownerDocument.defaultView ?? window).HTMLElement) &&
+                    parentElement.offsetParent === lastOffsetParent) {
+                    const ancOff = getElementOffsetsInContainer(parentElement, false, iframes);
+                    originalElementAndAllParentsMultipliedMatrix = new DOMMatrix().translate(-ancOff.x, -ancOff.y).multiply(originalElementAndAllParentsMultipliedMatrix);
+                }
                 if (parentElement.scrollTop || parentElement.scrollLeft)
                     originalElementAndAllParentsMultipliedMatrix = new DOMMatrix().translate(-parentElement.scrollLeft, -parentElement.scrollTop).multiply(originalElementAndAllParentsMultipliedMatrix);
                 return originalElementAndAllParentsMultipliedMatrix;
@@ -935,8 +937,25 @@ function computeOffsetTransformMatrix(elem) {
     // Parse offset-distance (px or %)
     let distance = parseOffsetDistance(offsetDistance);
 
-    // Compute position & tangent on path
+    // Compute position & tangent on path (in containing block coordinates)
     let { x, y, angle } = computeOffsetPathPoint(elem, offsetPath, distance);
+
+    // Subtract the element's flow position within its containing block.
+    // The offset-path positions the element absolutely within the containing block,
+    // but the walk already adds offsetLeft/offsetTop (flow position). To avoid
+    // double-counting, make the offset relative to the flow position.
+    const parent = elem.parentElement;
+    if (parent instanceof HTMLElement || parent instanceof (parent.ownerDocument.defaultView ?? window).HTMLElement) {
+        if (elem.offsetParent === parent) {
+            // Containing block = parent = offsetParent
+            x -= elem.offsetLeft;
+            y -= elem.offsetTop;
+        } else if (elem.offsetParent === parent.offsetParent) {
+            // Both share the same offsetParent
+            x -= (elem.offsetLeft - parent.offsetLeft);
+            y -= (elem.offsetTop - parent.offsetTop);
+        }
+    }
 
     // Handle offset-rotate
     let rotateFinal = 0;

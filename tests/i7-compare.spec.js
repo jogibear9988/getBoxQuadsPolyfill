@@ -16,7 +16,7 @@ let baseURL;
 test.beforeAll(async () => {
   const root = resolve(import.meta.dirname, '..');
   server = createServer((req, res) => {
-    const filePath = resolve(root, req.url === '/' ? 'i7.html' : req.url.slice(1));
+    const filePath = resolve(root, req.url.slice(1) || 'index.html');
     try {
       const data = readFileSync(filePath);
       const ext = extname(filePath);
@@ -91,7 +91,7 @@ async function collectTextQuadsByParent(page, rootSelector) {
   }, rootSelector);
 }
 
-test('compare polyfill text quads against Firefox native', async () => {
+async function compareQuads(htmlFile) {
   // --- Firefox with native getBoxQuads ---
   const ffBrowser = await firefox.launch({
     firefoxUserPrefs: {
@@ -99,7 +99,7 @@ test('compare polyfill text quads against Firefox native', async () => {
     },
   });
   const ffPage = await ffBrowser.newPage({ viewport: { width: 1600, height: 2000 } });
-  await ffPage.goto(baseURL + '/i7.html');
+  await ffPage.goto(baseURL + '/' + htmlFile);
   await ffPage.waitForLoadState('networkidle');
   await ffPage.evaluate(() => {
     const overlay = document.getElementById('overlay');
@@ -112,7 +112,7 @@ test('compare polyfill text quads against Firefox native', async () => {
   // --- Chromium with polyfill ---
   const crBrowser = await chromium.launch();
   const crPage = await crBrowser.newPage({ viewport: { width: 1600, height: 2000 } });
-  await crPage.goto(baseURL + '/i7.html');
+  await crPage.goto(baseURL + '/' + htmlFile);
   await crPage.waitForLoadState('networkidle');
   await addParentIds(crPage);
   const polyfillQuads = await collectTextQuadsByParent(crPage, '#root');
@@ -195,4 +195,12 @@ test('compare polyfill text quads against Firefox native', async () => {
       }
     }
   }
+}
+
+test('i7: compare polyfill text quads against Firefox native', async () => {
+  await compareQuads('i7.html');
+});
+
+test('i8: compare polyfill text quads against Firefox native', async () => {
+  await compareQuads('i8.html');
 });

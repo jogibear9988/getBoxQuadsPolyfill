@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Property Support Demo</title>
+</head>
+
+<body>
+    <div id="root">
+        <button style="
+                    --total: 12;
+                    --i: 9;
+                    --offset: calc(var(--i) / var(--total) * 100%);
+                    --delta: 0%;
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 10px;
+                    offset-rotate: 0deg;
+                    offset-path: rect(50px 150px 200px 50px);
+                    offset-distance: 0;
+                    transition: offset-distance 0.2s ease;
+                    position: relative;">Test
+            simple</button>
+        <button style="
+                    --total: 12;
+                    --i: 9;
+                    --offset: calc(var(--i) / var(--total) * 100%);
+                    --delta: 0%;
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 10px;
+                    offset-rotate: 0deg;
+                    offset-path: circle(100px at 150px 150px);
+                    offset-distance: calc(var(--offset) + var(--delta));
+                    transition: offset-distance 0.2s ease;
+                    position: relative;">Test
+            Offset Path complex</button>
+        <button style="
+                    --total: 12;
+                    --i: 10;
+                    --offset: calc(var(--i) / var(--total) * 100%);
+                    --delta: 0%;
+                    rotate: -15deg;
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 10px;
+                    offset-rotate: 0deg;
+                    offset-path: circle(100px at 150px 150px);
+                    offset-distance: calc(var(--offset) + var(--delta));
+                    transition: offset-distance 0.2s ease;
+                    left: 50px;
+                    position: relative;">Test
+            Offset Path complex 2</button>
+    </div>
+</body>
+
+<style>
+    #overlay>path {
+        fill: transparent;
+        stroke: red;
+    }
+</style>
+<script type="module">
+    import { addPolyfill } from './getBoxQuads.js';
+    addPolyfill();
+
+    const overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    overlay.setAttribute("id", "overlay");
+    overlay.style.position = 'absolute';
+    overlay.style.left = '0px';
+    overlay.style.top = '0px';
+    overlay.style.overflow = 'visible';
+    document.body.appendChild(overlay);
+
+    function draw() {
+        const type = "text";
+        let i = 0;
+        if (type === 'text') {
+            const nodes = document.createNodeIterator(document.body, NodeFilter.SHOW_TEXT);
+            const iter = nodes;
+            let e;
+            while (e = iter.nextNode()) {
+                if (e.data.trim()) {
+                    const pp = e.getBoxQuads({ box: 'border', relativeTo: root });
+                    for (let p of pp) {
+                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+                        path.setAttribute("d", d);
+                        path.setAttribute("id", i++);
+                        overlay.appendChild(path);
+                    }
+                }
+            }
+        } else {
+            const all = Array.from(document.body.querySelectorAll('*'));
+            for (let e of all) {
+                const p = e.getBoxQuads({ box: type.value, relativeTo: root })[0];
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+                path.setAttribute("d", d);
+                path.setAttribute("id", i++);
+                overlay.appendChild(path);
+            }
+        }
+    }
+    draw();
+</script>
+
+</html>
