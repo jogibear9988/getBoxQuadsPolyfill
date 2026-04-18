@@ -595,7 +595,8 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
                 originalElementAndAllParentsMultipliedMatrix = new DOMMatrix([ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f]).multiplySelf(originalElementAndAllParentsMultipliedMatrix);
                 parentElement = actualElement.ownerSVGElement;
             } else if ((actualElement instanceof HTMLElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLElement)) {
-                if (lastOffsetParent !== actualElement.offsetParent && !((actualElement instanceof HTMLSlotElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLSlotElement))) {
+                if (lastOffsetParent !== actualElement.offsetParent && !((actualElement instanceof HTMLSlotElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLSlotElement))
+                    && (lastOffsetParent === null || actualElement === lastOffsetParent || !lastOffsetParent.contains(actualElement))) {
                     const offsets = getElementOffsetsInContainer(actualElement, actualElement !== node, iframes);
                     lastOffsetParent = actualElement.offsetParent;
                     const mvMat = new DOMMatrix().translateSelf(offsets.x, offsets.y);
