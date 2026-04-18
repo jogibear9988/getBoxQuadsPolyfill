@@ -241,7 +241,9 @@ export function getBoxQuads(node, options) {
             // AABB center of the transformed parent equals its geometric center.
             // geometric_center_screen = screen(0,0) + L * (pw/2, ph/2)
             // => screen(0,0) = AABB_center - L * (pw/2, ph/2)
+            //@ts-ignore
             const pw = parent.offsetWidth;
+            //@ts-ignore
             const ph = parent.offsetHeight;
             const parentOriginX = (pr.x + pr.width  / 2) - (pa * pw / 2 + pc * ph / 2);
             const parentOriginY = (pr.y + pr.height / 2) - (pb * pw / 2 + pd * ph / 2);
