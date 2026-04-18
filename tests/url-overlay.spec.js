@@ -67,7 +67,7 @@ function getConfig() {
 
 async function injectPolyfill(page) {
     await page.addScriptTag({
-        content: `${POLYFILL_SOURCE}\n;globalThis.__getBoxQuadsPolyfillInjected = true;\naddPolyfill();`,
+        content: `${POLYFILL_SOURCE}\n;globalThis.__getBoxQuadsPolyfillInjected = true;\naddPolyfill(window, true);`,
     });
     await page.waitForFunction(() => typeof Node.prototype.getBoxQuads === 'function');
 }
@@ -266,11 +266,11 @@ test('inject polyfill and render quads for an arbitrary URL', async () => {
         : {
             targetUrl: 'https://node-projects.github.io/web-component-designer-demo/index.html',
             mode: 'elements',
-            query: 'div',
-            fullXPath: '/html/body/node-projects-app-shell//div/dock-spawn-ts/node-projects-document-container//div/node-projects-designer-tab-control//div',
+            query: '*',
+            fullXPath: '/html/body/node-projects-app-shell//div/dock-spawn-ts/node-projects-document-container//div/node-projects-designer-tab-control/div[1]/node-projects-designer-view//div/node-projects-designer-canvas//div/div[1]/div[2]/node-projects-overlay-layer-view//svg',
             rootSelector: 'body',
             relativeToSelector: 'body',
-            includeSvg: false,
+            includeSvg: true,
             includeShadowRoots: true,
             waitForSelector: '',
             waitMs: 5000,

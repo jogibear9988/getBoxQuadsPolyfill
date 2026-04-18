@@ -3,33 +3,40 @@
 
 /**
 * @param {globalThis} windowObj?
+* @param {boolean=} force
 */
-export function addPolyfill(windowObj = window) {
-    if (!windowObj.Node.prototype.getBoxQuads) {
+export function addPolyfill(windowObj = window, force = false) {
+    windowObj.__getBoxQuadsPolyfillFns ??= {};
+    windowObj.__getBoxQuadsPolyfillFns.getBoxQuads = getBoxQuads;
+    windowObj.__getBoxQuadsPolyfillFns.convertQuadFromNode = convertQuadFromNode;
+    windowObj.__getBoxQuadsPolyfillFns.convertRectFromNode = convertRectFromNode;
+    windowObj.__getBoxQuadsPolyfillFns.convertPointFromNode = convertPointFromNode;
+
+    if (force || !windowObj.Node.prototype.getBoxQuads) {
         //@ts-ignore
         windowObj.Node.prototype.getBoxQuads = function (options) {
-            return getBoxQuads(this, options)
+            return windowObj.__getBoxQuadsPolyfillFns.getBoxQuads(this, options)
         }
     }
 
-    if (!windowObj.Node.prototype.convertQuadFromNode) {
+    if (force || !windowObj.Node.prototype.convertQuadFromNode) {
         //@ts-ignore
         windowObj.Node.prototype.convertQuadFromNode = function (quad, from, options) {
-            return convertQuadFromNode(this, quad, from, options)
+            return windowObj.__getBoxQuadsPolyfillFns.convertQuadFromNode(this, quad, from, options)
         }
     }
 
-    if (!windowObj.Node.prototype.convertRectFromNode) {
+    if (force || !windowObj.Node.prototype.convertRectFromNode) {
         //@ts-ignore
         windowObj.Node.prototype.convertRectFromNode = function (rect, from, options) {
-            return convertRectFromNode(this, rect, from, options)
+            return windowObj.__getBoxQuadsPolyfillFns.convertRectFromNode(this, rect, from, options)
         }
     }
 
-    if (!windowObj.Node.prototype.convertPointFromNode) {
+    if (force || !windowObj.Node.prototype.convertPointFromNode) {
         //@ts-ignore
         windowObj.Node.prototype.convertPointFromNode = function (point, from, options) {
-            return convertPointFromNode(this, point, from, options)
+            return windowObj.__getBoxQuadsPolyfillFns.convertPointFromNode(this, point, from, options)
         }
     }
 }
@@ -549,11 +556,18 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
 
         if (actualElement.assignedSlot != null) {
             if (actualElement.nodeType === Node.ELEMENT_NODE) {
-                const l = offsetTopLeftPolyfill(actualElement, 'offsetLeft');
-                const t = offsetTopLeftPolyfill(actualElement, 'offsetTop');
-                const mvMat = new DOMMatrix().translateSelf(l, t);
-                originalElementAndAllParentsMultipliedMatrix = mvMat.multiplySelf(originalElementAndAllParentsMultipliedMatrix);
-                lastOffsetParent = offsetParentPolyfill(actualElement);
+                const slotOffsetParent = offsetParentPolyfill(actualElement);
+                const shouldApplySlottedOffset = lastOffsetParent !== slotOffsetParent
+                    && (lastOffsetParent === null || actualElement === lastOffsetParent || !isFlatTreeInclusiveAncestor(lastOffsetParent, actualElement));
+                if (shouldApplySlottedOffset) {
+                    const l = offsetTopLeftPolyfill(actualElement, 'offsetLeft');
+                    const t = offsetTopLeftPolyfill(actualElement, 'offsetTop');
+                    const mvMat = new DOMMatrix().translateSelf(l, t);
+                    originalElementAndAllParentsMultipliedMatrix = mvMat.multiplySelf(originalElementAndAllParentsMultipliedMatrix);
+                    lastOffsetParent = slotOffsetParent;
+                }
+                if (lastOffsetParent === null)
+                    lastOffsetParent = slotOffsetParent;
             } else if (actualElement.nodeType === Node.TEXT_NODE) {
                 const offsets = getElementOffsetsInContainer(actualElement, actualElement !== node, iframes);
                 const mvMat = new DOMMatrix().translateSelf(offsets.x, offsets.y);
@@ -596,7 +610,7 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
                 parentElement = actualElement.ownerSVGElement;
             } else if ((actualElement instanceof HTMLElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLElement)) {
                 if (lastOffsetParent !== actualElement.offsetParent && !((actualElement instanceof HTMLSlotElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLSlotElement))
-                    && (lastOffsetParent === null || actualElement === lastOffsetParent || !lastOffsetParent.contains(actualElement))) {
+                    && (lastOffsetParent === null || actualElement === lastOffsetParent || !isFlatTreeInclusiveAncestor(lastOffsetParent, actualElement))) {
                     const offsets = getElementOffsetsInContainer(actualElement, actualElement !== node, iframes);
                     lastOffsetParent = actualElement.offsetParent;
                     const mvMat = new DOMMatrix().translateSelf(offsets.x, offsets.y);
@@ -1556,6 +1570,14 @@ function flatTreeParent(element) {
     if (element.parentNode instanceof ShadowRoot)
         return element.parentNode.host;
     return element.parentNode;
+}
+
+function isFlatTreeInclusiveAncestor(ancestor, node) {
+    for (let current = node; current; current = flatTreeParent(current)) {
+        if (current === ancestor)
+            return true;
+    }
+    return false;
 }
 
 function ancestorTreeScopes(element) {
