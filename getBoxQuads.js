@@ -547,11 +547,11 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
 
         if (actualElement.assignedSlot != null) {
             if (actualElement.nodeType === Node.ELEMENT_NODE) {
-                const st = getCachedComputedStyle(actualElement);
-                if (st.position !== "static") {
-                    const mvMat = new DOMMatrix().translate(parseFloat(st.left), parseFloat(st.top));
-                    originalElementAndAllParentsMultipliedMatrix = mvMat.multiply(originalElementAndAllParentsMultipliedMatrix);
-                }
+                const l = offsetTopLeftPolyfill(actualElement, 'offsetLeft');
+                const t = offsetTopLeftPolyfill(actualElement, 'offsetTop');
+                const mvMat = new DOMMatrix().translateSelf(l, t);
+                originalElementAndAllParentsMultipliedMatrix = mvMat.multiplySelf(originalElementAndAllParentsMultipliedMatrix);
+                lastOffsetParent = offsetParentPolyfill(actualElement);
             } else if (actualElement.nodeType === Node.TEXT_NODE) {
                 const offsets = getElementOffsetsInContainer(actualElement, actualElement !== node, iframes);
                 const mvMat = new DOMMatrix().translateSelf(offsets.x, offsets.y);

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Property Support Demo</title>
+</head>
+
+<body style="padding: 0; margin: 0;">
+    <template id="wc-test-template">
+        <div style="width: 100%; height: 100%; position: absolute">
+            <div
+                style="z-index: 1; position: absolute; left: 50px; top: 5px; width: 100px; height: 50px; rotate: -45deg; background: yellow;">
+                WC-test
+                <slot></slot>
+            </div>
+        </div>
+    </template>
+
+    <template id="wc-test-template2">
+        <div style="width: 100%; height: 100%; position: absolute">
+            <div style="width: 100%; height: 100%;">
+                <slot></slot>
+            </div>
+            <div
+                style="z-index: 1; position: absolute; left: 50px; top: 5px; width: 100px; height: 50px; rotate: -45deg; background: yellow;">
+                WC-test
+            </div>
+        </div>
+    </template>
+
+    <wc-test style="position: absolute; left: 340px;">
+        <div style="margin: 5px; position: relative; left: -20px; top: 30px; background: lime;">AAAA</div>
+    </wc-test>
+
+    <wc-test2 style="position: absolute; left: 640px;">
+        <div style="margin: 5px; position: relative; left: -20px; top: 30px; background: lime; width: 60px;">AAAA</div>
+    </wc-test2>
+</body>
+
+<style>
+    #overlay>path {
+        fill: transparent;
+        stroke: red;
+    }
+</style>
+<script type="module">
+    //A webcomponent for test of shadowdom support
+    let wcContents = [];
+    customElements.define(
+        "wc-test",
+        class WcTest extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                const template = (
+                    document.getElementById("wc-test-template")
+                );
+                let wcContent = template.content.cloneNode(true).children[0];
+                wcContents.push(wcContent);
+                shadowRoot.appendChild(wcContent);
+            }
+        }
+    );
+    customElements.define(
+        "wc-test2",
+        class WcTest2 extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                const template = (
+                    document.getElementById("wc-test-template2")
+                );
+                let wcContent = template.content.cloneNode(true).children[0];
+                wcContents.push(wcContent);
+                shadowRoot.appendChild(wcContent);
+            }
+        }
+    );
+    // End of webcomponent
+
+    import { addPolyfill } from './getBoxQuads.js';
+    addPolyfill();
+
+    const overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    overlay.setAttribute("id", "overlay");
+    overlay.style.position = 'absolute';
+    overlay.style.left = '0px';
+    overlay.style.top = '0px';
+    overlay.style.overflow = 'visible';
+    document.body.appendChild(overlay);
+
+    function draw() {
+        const type = "blocks";
+        let i = 0;
+        if (type === 'text') {
+            const nodes = document.createNodeIterator(document.body, NodeFilter.SHOW_TEXT);
+            const iter = nodes;
+            let e;
+            while (e = iter.nextNode()) {
+                if (e.data.trim()) {
+                    const pp = e.getBoxQuads({ box: 'border', relativeTo: document.body });
+                    for (let p of pp) {
+                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+                        path.setAttribute("d", d);
+                        path.setAttribute("id", i++);
+                        overlay.appendChild(path);
+                    }
+                }
+            }
+        } else {
+            const all = Array.from(document.body.querySelectorAll('div'));
+            for (let e of all) {
+                const p = e.getBoxQuads({ box: type.value, relativeTo: document.body })[0];
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+                path.setAttribute("d", d);
+                path.setAttribute("id", i++);
+                overlay.appendChild(path);
+            }
+        }
+    }
+    draw();
+</script>
+
+</html>

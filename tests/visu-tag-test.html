@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>visu-tag test</title></head>
+<body style="padding: 0; margin: 0;">
+    <div>
+        <visu-tag-root-canvas id="outer-tag-root-canvas" tag-root="SRM.RBG01">
+            <template shadowrootmode="open">
+                <div id="rootObj" style="height:100%;width:100%;position:absolute;top:400px;">
+                    <slot></slot>
+                </div>
+            </template>
+            <div class="wrapper" id="aaaaabb" style="height:50px;width:50px;background:lime;">WRAPPER</div>
+        </visu-tag-root-canvas>
+    </div>
+
+    <svg id="overlay" style="position:absolute;left:0;top:0;overflow:visible;">
+    </svg>
+
+    <style>
+        #overlay > path { fill: transparent; stroke: red; }
+    </style>
+    <script type="module">
+        import { addPolyfill } from './getBoxQuads.js';
+        addPolyfill();
+
+        const overlay = document.getElementById('overlay');
+        const wrapper = document.getElementById('aaaaabb');
+        const quads = wrapper.getBoxQuads({ relativeTo: document.body });
+        for (const p of quads) {
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x+','+x.y).join(' ') + 'Z';
+            path.setAttribute("d", d);
+            overlay.appendChild(path);
+        }
+
+        // Output for testing
+        window.__testResult = quads.map(q => ({
+            p1: { x: Math.round(q.p1.x*10)/10, y: Math.round(q.p1.y*10)/10 },
+            p2: { x: Math.round(q.p2.x*10)/10, y: Math.round(q.p2.y*10)/10 },
+            p3: { x: Math.round(q.p3.x*10)/10, y: Math.round(q.p3.y*10)/10 },
+            p4: { x: Math.round(q.p4.x*10)/10, y: Math.round(q.p4.y*10)/10 },
+        }));
+    </script>
+</body>
+</html>
