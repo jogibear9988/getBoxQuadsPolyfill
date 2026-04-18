@@ -32,6 +32,7 @@
         }
 
         #root {
+            position: relative;
             width: 1440px;
             min-height: 1560px;
             margin: 0 auto;
@@ -351,7 +352,7 @@ and carries line breaks forward.</pre>
     overlay.style.left = '0px';
     overlay.style.top = '0px';
     overlay.style.overflow = 'visible';
-    document.body.appendChild(overlay);
+    root.appendChild(overlay);
 
     function draw() {
         const type = "text";
