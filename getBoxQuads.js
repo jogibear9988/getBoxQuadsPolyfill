@@ -235,16 +235,16 @@ export function getBoxQuads(node, options) {
             const M_parent = getResultingTransformationBetweenElementAndAllAncestors(parent, relativeToEl, options?.iframes);
 
             const parentCss = getElementCombinedTransform(parent, options?.iframes);
-            const parentStyle = getCachedComputedStyle(parent);
-            const originStr = parentStyle.transformOrigin.split(' ');
-            const ox = parseFloat(originStr[0]) || 0;
-            const oy = parseFloat(originStr[1]) || 0;
             const pr = parent.getBoundingClientRect();
-            // Screen position of parent's local (0,0) — same formula as getElementOffsetsInContainer
-            const parentOriginX = (pr.x + pr.width  / 2) - ox + parentCss.e;
-            const parentOriginY = (pr.y + pr.height / 2) - oy + parentCss.f;
 
             const pa = parentCss.a, pb = parentCss.b, pc = parentCss.c, pd = parentCss.d;
+            // AABB center of the transformed parent equals its geometric center.
+            // geometric_center_screen = screen(0,0) + L * (pw/2, ph/2)
+            // => screen(0,0) = AABB_center - L * (pw/2, ph/2)
+            const pw = parent.offsetWidth;
+            const ph = parent.offsetHeight;
+            const parentOriginX = (pr.x + pr.width  / 2) - (pa * pw / 2 + pc * ph / 2);
+            const parentOriginY = (pr.y + pr.height / 2) - (pb * pw / 2 + pd * ph / 2);
             const linearDet = pa * pd - pb * pc;
             const absA = Math.abs(pa), absB = Math.abs(pb);
             const absDet = absA * absA - absB * absB;
@@ -444,19 +444,13 @@ function getElementOffsetsInContainer(node, includeScroll, iframes) {
         const pt = getElementCombinedTransform(parent, iframes);
         const pa = pt.a, pb = pt.b, pc = pt.c, pd = pt.d;
 
-        // The AABB center of a rotated rectangle equals its geometric center, so
-        // text_center_screen = parent_local_origin_screen + L * (lx + tw/2, ly + th/2)
-        // where L is the linear part of the parent's CSS transform.
-        //
-        // parent_local_origin_screen = AABB_center - transform_origin + M_css.transformPoint(0,0)
-        //   (the AABB center equals the transform origin in screen space for rotation)
-        const parentStyle = getCachedComputedStyle(parent);
-        const originStr = parentStyle.transformOrigin.split(' ');
-        const ox = parseFloat(originStr[0]) || 0;
-        const oy = parseFloat(originStr[1]) || 0;
-        // pt.e/f = M_css.transformPoint(0,0) — the offset of local (0,0) from pre-transform pos
-        const parentOriginX = (r2.x + r2.width  / 2) - ox + pt.e;
-        const parentOriginY = (r2.y + r2.height / 2) - oy + pt.f;
+        // AABB center of the transformed parent equals its geometric center.
+        // geometric_center_screen = screen(0,0) + L * (pw/2, ph/2)
+        // => screen(0,0) = AABB_center - L * (pw/2, ph/2)
+        const pw = parent.offsetWidth;
+        const ph = parent.offsetHeight;
+        const parentOriginX = (r2.x + r2.width  / 2) - (pa * pw / 2 + pc * ph / 2);
+        const parentOriginY = (r2.y + r2.height / 2) - (pb * pw / 2 + pd * ph / 2);
 
         // Delta from parent origin to text AABB center in screen space
         const dx = (r1.x + r1.width  / 2) - parentOriginX;
