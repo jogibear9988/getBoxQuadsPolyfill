@@ -3,3 +3,4 @@
 /.vs
 debug.log
 /build
+/test-results

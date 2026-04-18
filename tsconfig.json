@@ -9,5 +9,6 @@
     "skipLibCheck": true,
     "strictNullChecks": false,
     "noImplicitAny": false,
+    "types": ["node"]
   }
 }

@@ -14,12 +14,14 @@
   "homepage": "https://github.com/jogibear9988/getBoxQuadsPolyfill#readme",
   "scripts": {
     "build": "tsc",
-    "start": "web-dev-server --open"
+    "start": "web-dev-server --open",
+    "test:url-overlay": "playwright test tests/url-overlay.spec.js --reporter=line"
   },
   "author": "",
   "license": "MIT",
   "devDependencies": {
     "@playwright/test": "^1.59.1",
+    "@types/node": "^25.6.0",
     "@web/dev-server": "^0.4.6",
     "typescript": "^6.0.2"
   }

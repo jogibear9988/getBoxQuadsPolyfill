@@ -1,5 +1,7 @@
 import { test, chromium } from '@playwright/test';
 
+const STATIC_BASE_URL = 'http://127.0.0.1:4173';
+
 test('visu-tag: check polyfill loads', async () => {
     const browser = await chromium.launch();
     const context = await browser.newContext({ viewport: { width: 900, height: 600 } });
@@ -8,7 +10,7 @@ test('visu-tag: check polyfill loads', async () => {
     page.on('console', msg => console.log('PAGE:', msg.text()));
     page.on('pageerror', err => console.log('PAGE ERROR:', err.message));
 
-    await page.goto('file:///Users/jkuehner/Documents/Repos/getBoxQuadsPolyfill/visu-tag-test.html');
+    await page.goto(`${STATIC_BASE_URL}/visu-tag-test.html`);
     await page.waitForTimeout(2000);
 
     const hasPolyfill = await page.evaluate(() => typeof Element.prototype.getBoxQuads === 'function');

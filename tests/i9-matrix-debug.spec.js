@@ -1,10 +1,12 @@
 import { test, expect, chromium, firefox } from '@playwright/test';
 
+const STATIC_BASE_URL = 'http://127.0.0.1:4173';
+
 test('i9 matrix walk debug', async () => {
     const browser = await chromium.launch();
     const context = await browser.newContext({ viewport: { width: 900, height: 400 } });
     const page = await context.newPage();
-    await page.goto('file:///Users/jkuehner/Documents/Repos/getBoxQuadsPolyfill/i9.html');
+    await page.goto(`${STATIC_BASE_URL}/i9.html`);
     await page.waitForTimeout(500);
 
     const result = await page.evaluate(() => {

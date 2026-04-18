@@ -1,5 +1,7 @@
 import { test, chromium, firefox } from '@playwright/test';
 
+const STATIC_BASE_URL = 'http://127.0.0.1:4173';
+
 test('visu-tag-root-canvas: compare polyfill vs Firefox native', async () => {
     // Firefox with native getBoxQuads
     const ffBrowser = await firefox.launch({
@@ -7,7 +9,7 @@ test('visu-tag-root-canvas: compare polyfill vs Firefox native', async () => {
     });
     const ffContext = await ffBrowser.newContext({ viewport: { width: 900, height: 600 } });
     const ffPage = await ffContext.newPage();
-    await ffPage.goto('file:///Users/jkuehner/Documents/Repos/getBoxQuadsPolyfill/tests/visu-tag-test.html');
+    await ffPage.goto(`${STATIC_BASE_URL}/visu-tag-test.html`);
     await ffPage.waitForTimeout(500);
 
     const ffResult = await ffPage.evaluate(() => {
@@ -27,7 +29,7 @@ test('visu-tag-root-canvas: compare polyfill vs Firefox native', async () => {
     const crBrowser = await chromium.launch();
     const crContext = await crBrowser.newContext({ viewport: { width: 900, height: 600 } });
     const crPage = await crContext.newPage();
-    await crPage.goto('file:///Users/jkuehner/Documents/Repos/getBoxQuadsPolyfill/tests/visu-tag-test.html');
+    await crPage.goto(`${STATIC_BASE_URL}/visu-tag-test.html`);
     await crPage.waitForTimeout(1000);
     await crPage.waitForFunction(() => typeof Element.prototype.getBoxQuads === 'function', { timeout: 5000 }).catch(() => {});
 
