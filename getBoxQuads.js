@@ -593,7 +593,14 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
                 originalElementAndAllParentsMultipliedMatrix = new DOMMatrix([ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f]).multiplySelf(originalElementAndAllParentsMultipliedMatrix);
                 parentElement = actualElement.ownerSVGElement;
             } else if ((actualElement instanceof HTMLElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLElement)) {
-                if (lastOffsetParent !== actualElement.offsetParent && !((actualElement instanceof HTMLSlotElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLSlotElement))) {
+                const aeCs = getCachedComputedStyle(actualElement);
+                const hasActiveOffsetPath = aeCs.offsetPath && aeCs.offsetPath !== 'none';
+                if (hasActiveOffsetPath) {
+                    // offset-path positions the element absolutely within its containing block.
+                    // The CSS combined transform already encodes this position, so skip
+                    // adding offsetLeft/offsetTop which would double-count the position.
+                    // Do NOT update lastOffsetParent so ancestor offsets are added correctly.
+                } else if (lastOffsetParent !== actualElement.offsetParent && !((actualElement instanceof HTMLSlotElement || actualElement instanceof (actualElement.ownerDocument.defaultView ?? window).HTMLSlotElement))) {
                     const offsets = getElementOffsetsInContainer(actualElement, actualElement !== node, iframes);
                     lastOffsetParent = actualElement.offsetParent;
                     const mvMat = new DOMMatrix().translateSelf(offsets.x, offsets.y);
@@ -1092,7 +1099,7 @@ function computeCircle(str, t) {
     let r = parseFloat(radiusPart);
     let [cx, cy] = atPart.split(/\s+/).map(parseFloat);
 
-    let angleRad = t * 2 * Math.PI - Math.PI / 2;
+    let angleRad = t * 2 * Math.PI;
     let x = cx + Math.cos(angleRad) * r;
     let y = cy + Math.sin(angleRad) * r;
 
@@ -1112,7 +1119,7 @@ function computeEllipse(str, t) {
     let cx = center[0];
     let cy = center[1];
 
-    let angleRad = t * 2 * Math.PI - Math.PI / 2;
+    let angleRad = t * 2 * Math.PI;
 
     let x = cx + Math.cos(angleRad) * rx;
     let y = cy + Math.sin(angleRad) * ry;
