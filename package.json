@@ -15,6 +15,8 @@
   "scripts": {
     "build": "tsc",
     "start": "web-dev-server --open",
+    "test": "playwright test",
+    "test:perf": "playwright test tests/getBoxQuads-performance.spec.js --reporter=line",
     "test:url-overlay": "playwright test tests/url-overlay.spec.js --reporter=line"
   },
   "author": "",
