@@ -1039,6 +1039,7 @@ export function getElementCombinedTransform(element, iframes) {
         const ps = getCachedComputedStyle(parent);
         if (!ps.perspective || ps.perspective === 'none') return new DOMMatrix();
         // Parent has a perspective — fall through to compute it properly.
+        //@ts-ignore
         const pt = getElementPerspectiveTransform(element, iframes);
         return pt != null ? pt : new DOMMatrix();
     }
