@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="og-profile-acct" content="jochen.kuehner@googlemail.com">
+    <meta charset="UTF-8">
+    <meta content="dark light" name="color-scheme">
+    <meta content="origin" name="referrer">
+    <link href="//www.gstatic.com/images/branding/searchlogo/ico/favicon.ico" rel="icon">
+    <meta content="/images/branding/googleg/1x/googleg_standard_color_128dp.png" itemprop="image">
+    <title>google - Google Suche</title>
+    <style>
+        img {
+            background: green;
+            display: block;
+            height: 50px;
+            width: 50px !important;
+        }
+
+        :host {
+            background: #333;
+            position: relative;
+        }
+
+        .parent {
+            scale: 2;
+            transform-origin: top;
+            padding: 40px;
+            position: relative;
+            background-image: url(/grid.svg), url(/mesh.svg);
+            background-repeat: repeat, no-repeat;
+            background-size: 50%, cover;
+            width: 300px;
+            margin: 0 auto;
+            border-radius: 8px;
+            height: 300px;
+            border: 1px solid #bbb;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.2), 0 10px 15px -3px rgb(0 0 0 / 0.15),
+                0 4px 6px -4px rgb(0 0 0 / 0.1), 0 2px 4px rgb(0 0 0 / 0.1);
+        }
+
+        .square {
+            --offset: calc(var(--i) / var(--total) * 100%);
+            --delta: 0%;
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            offset-rotate: 0deg;
+            offset-path: circle(100px at 150px 150px);
+            offset-distance: calc(var(--offset) + var(--delta));
+            transition: offset-distance 0.2s ease;
+            position: relative;
+
+            img {
+                width: 100%;
+                isolation: isolate;
+            }
+
+            &::before {
+                opacity: 0;
+                content: "";
+                border-radius: 10px;
+                height: 90px;
+                width: 38px;
+                position: absolute;
+                offset-path: circle(1px at 25px 25px);
+                offset-distance: calc(var(--offset) + var(--delta));
+                background: #358af677;
+                clip-path: polygon(0 0, 100% 0, 80% 100%, 20% 100%);
+            }
+
+            &:hover {
+                z-index: 6;
+            }
+
+            &:hover::before {
+                opacity: 1;
+            }
+        }
+
+        .square:hover+p+.square,
+        .square:first-child:has(~ .square:hover + p:last-child) {
+            z-index: 5;
+            --delta: 5%;
+        }
+
+        /* 14 hover 1 2%, */
+        .square:hover+p+.square+p+.square,
+        .square:first-child+p+.square:has(~ .square:hover + p:last-child),
+        .square:first-child:has(~ .square:hover + p + .square + p:last-child) {
+            z-index: 2;
+            --delta: 3%;
+        }
+
+        .square:hover+p+.square+p+.square+p+.square,
+        .square:first-child+p+.square+p+.square:has(~ .square:hover + p:last-child),
+        .square:first-child:has(~ .square:hover + p + .square + p + .square + p:last-child),
+        .square:first-child+p+.square:has(~ .square:hover + p + .square + p:last-child) {
+            z-index: 1;
+            --delta: 1%;
+        }
+
+        .square:has(+ p + .square:hover),
+        .square:first-child:hover~.square:has(+ p:last-child) {
+            z-index: 5;
+            --delta: -5%;
+        }
+
+        .square:has(+ p + .square + p + .square:hover),
+        .square:first-child:hover~.square:has(+ p + .square + p:last-child),
+        .square:first-child+p+.square:hover~.square:has(+ p:last-child) {
+            z-index: 2;
+            --delta: -3%;
+        }
+
+        .square:has(+ p + .square + p + .square + p + .square:hover),
+        .square:first-child:hover~.square:has(+ p + .square + p + .square + p:last-child),
+        .square:first-child+p+.square:hover~.square:has(+ p + .square + p:last-child),
+        .square:first-child+p+.square+p+.square:hover~.square:has(+ p:last-child) {
+            z-index: 1;
+            --delta: -1%;
+        }
+
+        .container {
+            inset: 0;
+            position: relative;
+            z-index: 2;
+            height: 300px;
+
+            p {
+                position: absolute;
+                z-index: 100;
+                top: 50%;
+                left: 50%;
+                translate: -50% -50%;
+                background: #4e3f52;
+                border-radius: 7px;
+                color: white;
+                font-weight: 600;
+                text-shadow: 0 0 1px rgb(0 0 0 / 0.2);
+                font-family: "SF Pro Rounded";
+                box-shadow: inset 0 1px 1.5px #4e3f52, inset 0 1px 0.5px rgb(255 255 255 / 0.5);
+                font-size: 10px;
+                padding: 2px 4px;
+                margin: 0;
+                opacity: 0;
+            }
+        }
+
+        .square:hover+p {
+            opacity: 1;
+        }
+
+        .container-2 {
+            position: relative;
+        }
+
+        .doughnut {
+            inset: 0;
+            z-index: 1;
+            position: absolute;
+            background: radial-gradient(circle, transparent 25%, #eae9e7 20%);
+            border-radius: 100%;
+            height: 300px;
+            width: 300px;
+            filter: drop-shadow(0 0 1px #bab6ba);
+        }
+    </style>
+
+<body style="margin: 0; padding: 0;">
+    <div class="parent">
+        <div class="container-2">
+            <div class="container" style="--total:12;">
+                <div data-label="App Name" class="square" style="--i:0;">
+                    <img src="/icons/app.png">
+                </div>
+                <p>Sketch</p>
+                <div data-label="App Name" class="square" style="--i:1;">
+                    <img src="/icons/AppIcon 2-i.png">
+                </div>
+                <p>Wave</p>
+                <div data-label="App Name" class="square" style="--i:2;">
+                    <img src="/icons/AppIcon 3-i.png">
+                </div>
+                <p>Ghostty</p>
+                <div data-label="App Name" class="square" style="--i:3;">
+                    <img src="/icons/AppIcon 3.png">
+                </div>
+                <p>VSCode</p>
+                <div data-label="App Name" class="square" style="--i:4;">
+                    <img src="/icons/AppIcon 4-i.png">
+                </div>
+                <p>Inna</p>
+                <div data-label="App Name" class="square" style="--i:5;">
+                    <img src="/icons/AppIcon 4.png">
+                </div>
+                <p>Bartender</p>
+                <div data-label="App Name" class="square" style="--i:6;">
+                    <img src="/icons/AppIcon 5-i.png">
+                </div>
+                <p>TV</p>
+                <div data-label="App Name" class="square" style="--i:7;">
+                    <img src="/icons/AppIcon 5.png">
+                </div>
+                <p>Tables Plus</p>
+                <div data-label="App Name" class="square" style="--i:8;">
+                    <img src="/icons/AppIcon 6-i.png">
+                </div>
+                <p>OBS</p>
+                <div data-label="App Name" class="square" style="--i:9;">
+                    <img src="/icons/AppIcon 6.png">
+                </div>
+                <p>Wes Bos</p>
+                <div data-label="App Name" class="square" style="--i:10;">
+                    <img src="/icons/AppIcon 7.png">
+                </div>
+                <p>Popsicle</p>
+                <div data-label="App Name" class="square" style="--i:11;">
+                    <img src="/icons/AppIcon 8.png">
+                </div>
+                <p>Last</p>
+            </div>
+            <div class="doughnut"></div>
+        </div>
+    </div>
+</body>
+<style>
+    #overlay>path {
+        fill: transparent;
+        stroke: red;
+        pointer-events: auto;
+    }
+</style>
+<script type="module">
+    import { addPolyfill } from './getBoxQuads.js';
+    addPolyfill();
+
+    const overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    overlay.setAttribute("id", "overlay");
+    overlay.style.position = 'absolute';
+    overlay.style.left = '0px';
+    overlay.style.top = '0px';
+    overlay.style.overflow = 'visible';
+    document.body.appendChild(overlay);
+
+    function draw() {
+        console.time('boxQ');
+        let lst = []
+        const type = "";
+        let i = 0;
+        if (type === 'text') {
+            const nodes = document.createNodeIterator(document.body, NodeFilter.SHOW_TEXT);
+            const iter = nodes;
+            let e;
+            while (e = iter.nextNode()) {
+                if (e.data.trim()) {
+                    const pp = e.getBoxQuads({ box: 'border', relativeTo: document.body });
+                    for (let p of pp) {
+                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+                        path.setAttribute("d", d);
+                        path.setAttribute("id", i++);
+                        lst.push(path);
+                        //overlay.appendChild(path);
+                    }
+                }
+            }
+        } else {
+            const all = Array.from(document.body.querySelectorAll('div'));
+            for (let e of all) {
+                const p = e.getBoxQuads({ box: type.value, relativeTo: document.body })[0];
+                if (p) {
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+                    path.setAttribute("d", d);
+                    path.setAttribute("id", (e.id ? e.id : i++));
+                    lst.push(path);
+                    //overlay.appendChild(path);
+                }
+            }
+        }
+
+        console.timeEnd('boxQ');
+        for (let p of lst) {
+            overlay.appendChild(p);
+        }
+    }
+
+    draw();
+
+</script>
+
+</html>
