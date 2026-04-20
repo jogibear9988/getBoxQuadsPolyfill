@@ -578,10 +578,25 @@ export function getElementSize(node, matrix) {
 */
 function getElementOffsetsInContainer(node, includeScroll, iframes) {
     if ((node instanceof HTMLElement || node instanceof (node.ownerDocument.defaultView ?? window).HTMLElement)) {
+        const cs = getCachedComputedStyle(node);
+        if (cs.position === 'fixed') {
+            const par = getParentElementIncludingSlots(node, iframes);
+            if (!par) {
+                return new DOMPoint(node.offsetLeft, node.offsetTop);
+            }
+
+            const m = getResultingTransformationBetweenElementAndAllAncestors(par, node.ownerDocument.body, iframes).inverse();
+            const r1 = node.getBoundingClientRect();
+            const r1t = m.transformPoint(r1);
+            const r2 = par.getBoundingClientRect();
+            const r2t = m.transformPoint(r2);
+
+            return new DOMPoint(r1t.x - r2t.x, r1t.y - r2t.y);
+        }
+
         // FIX 4: Only call getCachedComputedStyle when includeScroll is true —
         //        cs is unused in the plain offsetLeft/offsetTop path.
         if (includeScroll) {
-            const cs = getCachedComputedStyle(node);
             return new DOMPoint(node.offsetLeft - (node.scrollLeft - parseFloat(cs.borderLeftWidth)), node.offsetTop - (node.scrollTop - parseFloat(cs.borderTopWidth)));
         } else {
             return new DOMPoint(node.offsetLeft, node.offsetTop);
