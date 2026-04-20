@@ -15245,7 +15245,9 @@
     document.body.appendChild(overlay);
 
     function draw() {
-        const type = "blocks";
+        console.time('boxQ');
+        let lst = []
+        const type = "text";
         let i = 0;
         if (type === 'text') {
             const nodes = document.createNodeIterator(document.body, NodeFilter.SHOW_TEXT);
@@ -15259,7 +15261,8 @@
                         const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
                         path.setAttribute("d", d);
                         path.setAttribute("id", i++);
-                        overlay.appendChild(path);
+                        lst.push(path);
+                        //overlay.appendChild(path);
                     }
                 }
             }
@@ -15272,12 +15275,20 @@
                     const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
                     path.setAttribute("d", d);
                     path.setAttribute("id", (e.id ? e.id : i++));
-                    overlay.appendChild(path);
+                    lst.push(path);
+                    //overlay.appendChild(path);
                 }
             }
         }
+
+        console.timeEnd('boxQ');
+        for (let p of lst) {
+            overlay.appendChild(p);
+        }
     }
+
     draw();
+
 </script>
 
 </html>
