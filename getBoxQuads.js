@@ -795,29 +795,9 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
         }
 
         if (parentElement) {
-            // FIX 12: parentElementMatrix computed here; in the next iteration this
-            //         becomes the element's own transform, so we can reuse it without
-            //         calling getElementCombinedTransform again.
-            parentElementMatrix = getElementCombinedTransform(parentElement, iframes);
-
-            if (parentElement != ancestor && !parentElementMatrix.isIdentity)
-                originalElementAndAllParentsMultipliedMatrix = parentElementMatrix.multiply(originalElementAndAllParentsMultipliedMatrix);
-
-            perspectiveParentElement = getParentElementIncludingSlots(parentElement, iframes);
-            if (perspectiveParentElement) {
-                // FIX 5: Skip transformStyle read when matrix is already 2D.
-                if (!originalElementAndAllParentsMultipliedMatrix.is2D) {
-                    const s = getCachedComputedStyle(perspectiveParentElement);
-                    if (s.transformStyle !== 'preserve-3d') {
-                        projectTo2D(originalElementAndAllParentsMultipliedMatrix);
-                    }
-                }
-            }
-
             if (parentElement === ancestor) {
-                // When accumulated offsets are relative to an offsetParent above the ancestor,
-                // subtract the ancestor's own offset (relative to that same offsetParent)
-                // to convert from offsetParent-relative to ancestor-relative coordinates.
+                // The ancestor's own transform is excluded from the returned matrix,
+                // so avoid computing it on the hot return path.
                 if (lastOffsetParent !== null &&
                     (parentElement instanceof HTMLElement || parentElement instanceof (parentElement.ownerDocument.defaultView ?? window).HTMLElement) &&
                     parentElement.offsetParent === lastOffsetParent) {
@@ -838,6 +818,25 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
                     transformCache.set(key, originalElementAndAllParentsMultipliedMatrix);
 
                 return originalElementAndAllParentsMultipliedMatrix;
+            }
+
+            // FIX 12: parentElementMatrix computed here; in the next iteration this
+            //         becomes the element's own transform, so we can reuse it without
+            //         calling getElementCombinedTransform again.
+            parentElementMatrix = getElementCombinedTransform(parentElement, iframes);
+
+            if (!parentElementMatrix.isIdentity)
+                originalElementAndAllParentsMultipliedMatrix = parentElementMatrix.multiply(originalElementAndAllParentsMultipliedMatrix);
+
+            perspectiveParentElement = getParentElementIncludingSlots(parentElement, iframes);
+            if (perspectiveParentElement) {
+                // FIX 5: Skip transformStyle read when matrix is already 2D.
+                if (!originalElementAndAllParentsMultipliedMatrix.is2D) {
+                    const s = getCachedComputedStyle(perspectiveParentElement);
+                    if (s.transformStyle !== 'preserve-3d') {
+                        projectTo2D(originalElementAndAllParentsMultipliedMatrix);
+                    }
+                }
             }
         }
         actualElement = parentElement;

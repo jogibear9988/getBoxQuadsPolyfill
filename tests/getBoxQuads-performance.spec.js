@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
-import { expect, test } from '@playwright/test';
+import { chromium, expect, firefox, test } from '@playwright/test';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const POLYFILL_SOURCE = readFileSync(resolve(ROOT, 'getBoxQuads.js'), 'utf8').replace(/^export\s+/gm, '');
@@ -12,8 +12,58 @@ async function injectPolyfill(page) {
     await page.waitForFunction(() => typeof Node.prototype.getBoxQuads === 'function');
 }
 
+async function collectSampleQuads(page, indices) {
+    return page.evaluate((sampleIndices) => {
+        const relativeTo = document.getElementById('benchmark-anchor');
+        const targets = Array.from(document.querySelectorAll('[data-bench-target]'));
+
+        return sampleIndices.map((index) => {
+            const element = targets[index];
+            const quad = element.getBoxQuads({ relativeTo })[0];
+            return {
+                index,
+                p1: { x: quad.p1.x, y: quad.p1.y },
+                p2: { x: quad.p2.x, y: quad.p2.y },
+                p3: { x: quad.p3.x, y: quad.p3.y },
+                p4: { x: quad.p4.x, y: quad.p4.y },
+            };
+        });
+    }, indices);
+}
+
 test.describe('getBoxQuads performance', () => {
     test.use({ viewport: { width: 1680, height: 1200 } });
+
+    test('matches Firefox native quads relative to a transformed ancestor', async () => {
+        test.slow();
+
+        const fixtureUrl = '/perf.html?groups=8&items=8&depth=3';
+        const sampleIndices = [0, 7, 19, 31];
+
+        const firefoxBrowser = await firefox.launch({
+            firefoxUserPrefs: { 'layout.css.getBoxQuads.enabled': true },
+        });
+        const firefoxPage = await firefoxBrowser.newPage({ viewport: { width: 1400, height: 1000 } });
+        await firefoxPage.goto(fixtureUrl, { waitUntil: 'domcontentloaded' });
+        await firefoxPage.waitForFunction(() => document.body.dataset.benchReady === 'true');
+        const firefoxQuads = await collectSampleQuads(firefoxPage, sampleIndices);
+        await firefoxBrowser.close();
+
+        const chromiumBrowser = await chromium.launch();
+        const chromiumPage = await chromiumBrowser.newPage({ viewport: { width: 1400, height: 1000 } });
+        await chromiumPage.goto(fixtureUrl, { waitUntil: 'domcontentloaded' });
+        await chromiumPage.waitForFunction(() => document.body.dataset.benchReady === 'true');
+        await injectPolyfill(chromiumPage);
+        const chromiumQuads = await collectSampleQuads(chromiumPage, sampleIndices);
+        await chromiumBrowser.close();
+
+        for (let index = 0; index < sampleIndices.length; index += 1) {
+            for (const point of ['p1', 'p2', 'p3', 'p4']) {
+                expect(Math.abs(chromiumQuads[index][point].x - firefoxQuads[index][point].x)).toBeLessThanOrEqual(1);
+                expect(Math.abs(chromiumQuads[index][point].y - firefoxQuads[index][point].y)).toBeLessThanOrEqual(1);
+            }
+        }
+    });
 
     test('measures polyfill cost on a rendered nested transformed scene', async ({ page, browserName }, testInfo) => {
         test.slow();

@@ -264,10 +264,10 @@ test('inject polyfill and render quads for an arbitrary URL', async () => {
     const config = process.env.TARGET_URL
         ? getConfig()
         : {
-            targetUrl: 'https://node-projects.github.io/web-component-designer-demo/index.html',
+            targetUrl: 'https://www.youtube.com',
             mode: 'elements',
             query: '*',
-            fullXPath: '/html/body/node-projects-app-shell//div/dock-spawn-ts/node-projects-document-container//div/node-projects-designer-tab-control/div[1]/node-projects-designer-view//div/node-projects-designer-canvas//div/div[1]/div[2]/node-projects-overlay-layer-view//svg',
+            //fullXPath: '/html/body/node-projects-app-shell//div/dock-spawn-ts/node-projects-document-container//div/node-projects-designer-tab-control/div[1]/node-projects-designer-view//div/node-projects-designer-canvas//div/div[1]/div[2]/node-projects-overlay-layer-view//svg',
             rootSelector: 'body',
             relativeToSelector: 'body',
             includeSvg: true,
