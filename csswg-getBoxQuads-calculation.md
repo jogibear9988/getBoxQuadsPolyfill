@@ -79,7 +79,7 @@ For each fragment point, compute an accumulated transform $M(node, relativeTo)$ 
 Conceptually:
 
 $$
-q_i = \operatorname{flatten}\left(M(node, relativeTo) \cdot p_i\right)
+q_i = \mathrm{flatten}\left(M(node, relativeTo) \cdot p_i\right)
 $$
 
 where `p_i` is one local corner point of the fragment and `q_i` is the returned point.
