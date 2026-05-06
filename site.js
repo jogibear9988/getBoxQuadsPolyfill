@@ -1,7 +1,7 @@
 import { addPolyfill, clearCache, useCache } from './getBoxQuads.js';
 
-const nativeAvailableBeforePolyfill = typeof Node !== 'undefined'
-    && typeof Node.prototype.getBoxQuads === 'function';
+const nativeAvailableBeforePolyfill = typeof Element !== 'undefined'
+    && typeof Element.prototype.getBoxQuads === 'function';
 
 addPolyfill(window);
 
