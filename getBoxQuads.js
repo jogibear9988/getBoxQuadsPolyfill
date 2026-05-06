@@ -955,7 +955,14 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
                         originalElementAndAllParentsMultipliedMatrix = new DOMMatrix().translate(-ancOff.x, -ancOff.y).multiply(originalElementAndAllParentsMultipliedMatrix);
                     }
                 }
-                if (parentElement.scrollTop || parentElement.scrollLeft)
+                // FIX 15: Do NOT subtract the scroll of documentElement (the viewport/window
+                //         scroll). The offsetLeft/offsetTop walk already yields document-absolute
+                //         coordinates; subtracting documentElement.scrollTop would wrongly
+                //         shift positions to viewport-space when the page is scrolled.
+                //         Only subtract scroll for a non-root ancestor that is itself a
+                //         scroll container (e.g. an overflow:scroll div used as relativeTo).
+                const isViewportScrollContainer = parentElement === parentElement.ownerDocument.documentElement;
+                if (!isViewportScrollContainer && (parentElement.scrollTop || parentElement.scrollLeft))
                     originalElementAndAllParentsMultipliedMatrix = new DOMMatrix().translate(-parentElement.scrollLeft, -parentElement.scrollTop).multiply(originalElementAndAllParentsMultipliedMatrix);
 
                 const ancestorZoom = getElementZoomScaleTransform(parentElement);
