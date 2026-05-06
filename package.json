@@ -11,7 +11,7 @@
   "bugs": {
     "url": "https://github.com/jogibear9988/getBoxQuadsPolyfill/issues"
   },
-  "homepage": "https://github.com/jogibear9988/getBoxQuadsPolyfill#readme",
+  "homepage": "https://jogibear9988.github.io/getBoxQuadsPolyfill/",
   "scripts": {
     "build": "tsc",
     "start": "web-dev-server --open",
