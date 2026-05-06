@@ -1,0 +1,393 @@
+<html>
+
+<head>
+    <title>getBoxQuads Test</title>
+    <style>
+        svg {
+            fill: rgba(255, 166, 0, 0.205);
+            stroke: orange;
+            stroke-dasharray: 2;
+            overflow: visible;
+        }
+
+        svg rect {
+            fill: blue;
+        }
+    </style>
+</head>
+
+<body>
+    <template id="wc-test-template">
+        <div style="width: 100%; height: 100%; position: absolute">
+            <div
+                style="z-index: 1; position: absolute; left: 50px; top: 5px; width: 100px; height: 50px; rotate: -45deg; background: lightpink;">
+                WC-test
+                <slot></slot>
+            </div>
+        </div>
+    </template>
+
+    <div
+        style="z-index: -1; position: fixed; right: 5px; top: 20px; width: 400px; height: 200px; background: lightblue;">
+        <div style="position: absolute; right: 5px; top: 5px; color: gray; font-weight: 800;">Click Overlay</div>
+        <svg id="click-overlay" style="position: absolute; left: 0px; top: 0px; pointer-events: none;"></svg>
+    </div>
+    <div style="display: flex; flex-direction: column;">
+        Options:
+        <select id="type" style="width: 300px;">
+            <option>margin</option>
+            <option selected>border</option>
+            <option>padding</option>
+            <option>content</option>
+            <option>text</option>
+            <option>none</option>
+        </select>
+        <div>
+            The Overlays in the SVG are calculated via getBoxQuads and then drawn into an overlay layer<br><br>
+            See the SVG Element and MathML Elemnts have a wrong overlay. They only works correctly in Firefox, when you
+            enable the
+            native getBoxQuads API. It's cause we display in a grid, so I don't know the offset in the control, and it
+            could not be calculated via getBoundingClientRect cause of the rotation.<br><br>
+            This could be fixed if the browsers support offsetLeft & top for all elements, or natively support
+            getBoxQuads.<br><br>
+            In the "Click Overlay" you see the clicked element in transformed coordinates.
+        </div>
+    </div>
+    <div id="root"
+        style="position: relative; left: 50px; top: 100px; background-color: #b0c4de40; width: 100%; height: 200%;">
+        <div id="container" style="position: absolute; left: 0px; top: 0px; opacity: 0.4;">
+            <button
+                style="
+                    --total: 12;
+                    --i: 9;
+                    --offset: calc(var(--i) / var(--total) * 100%);
+                    --delta: 0%;
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 10px;
+                    offset-rotate: 0deg;
+                    offset-path: rect(50px 150px 200px 50px);
+                    offset-distance: 0;
+                    transition: offset-distance 0.2s ease;
+                    position: relative;">Test
+                simple</button>
+            <button
+                style="
+                    --total: 12;
+                    --i: 9;
+                    --offset: calc(var(--i) / var(--total) * 100%);
+                    --delta: 0%;
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 10px;
+                    offset-rotate: 0deg;
+                    offset-path: circle(100px at 150px 150px);
+                    offset-distance: calc(var(--offset) + var(--delta));
+                    transition: offset-distance 0.2s ease;
+                    position: relative;">Test
+                Offset Path complex</button>
+                <button
+                style="
+                    --total: 12;
+                    --i: 10;
+                    --offset: calc(var(--i) / var(--total) * 100%);
+                    --delta: 0%;
+                    rotate: -15deg;
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 10px;
+                    offset-rotate: 0deg;
+                    offset-path: circle(100px at 150px 150px);
+                    offset-distance: calc(var(--offset) + var(--delta));
+                    transition: offset-distance 0.2s ease;
+                    left: 50px;
+                    position: relative;">Test
+                Offset Path complex 2</button>
+
+            <svg id="ui-network-svg" width="100%" height="100%" viewBox="0 0 700 700" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:1;">
+                <text x="50%" y="-40" text-anchor="middle" font-size="48" fill="black" font-weight="bold">aaaa</text>
+                <text x="50%" y="-10" text-anchor="middle" font-size="40" fill="black">bbbb</text>
+                <g id="ui-network-connectors" style="display:block;">
+                    <rect id="X7" x="316.754" y="288.160" width="30" height="30" style="fill:rgb(235,235,235);stroke:black;stroke-width:4.1px;"></rect>
+                    <rect id="X6" x="316.754" y="197.044" width="30" height="30" style="fill:rgb(235,235,235);stroke:black;stroke-width:4.1px;"></rect>
+                    <rect id="X5" x="316.754" y="159.371" width="30" height="30" style="fill:rgb(235,235,235);stroke:black;stroke-width:4.1px;"></rect>
+                    <rect id="X4" x="270.601" y="297.421" width="30" height="30" style="fill:rgb(235,235,235);stroke:black;stroke-width:4.1px;"></rect>
+                    <rect id="X3" x="270.601" y="259.495" width="30" height="30" style="fill:rgb(235,235,235);stroke:black;stroke-width:4.1px;"></rect>
+                    <rect id="X2" x="270.601" y="202.606" width="30" height="30" style="fill:rgb(235,235,235);stroke:black;stroke-width:4.1px;"></rect>
+                    <rect id="X1" x="270.601" y="164.921" width="30" height="30" style="fill:rgb(235,235,235);stroke:black;stroke-width:4.1px;"></rect>
+                </g>
+            </svg>
+            <button
+                style="offset-path: circle(100px at 150px 150px); offset-distance: 0%; offset-rotate: -0deg; z-index: 9999; position: absolute;">Test
+                Offset Path 0</button>
+            <button
+                style="offset-path: circle(100px at 150px 150px); offset-distance: 25%; offset-rotate: 45deg;  z-index: 9999; position: absolute;">Test
+                Offset Path 25</button>
+            <button
+                style="offset-path: circle(100px at 150px 150px); offset-distance: 50%; transform-origin: 60px 20px; rotate: 45deg; offset-rotate: 0deg; z-index: 9999; position: absolute;">Test
+                Offset Path 50</button>
+            <button
+                style="offset-path: circle(100px at 150px 150px); offset-distance: 75%; z-index: 9999; position: absolute;">Test
+                Offset Path 75</button>
+            <button
+                style="z-index: 9999; position: absolute; left: 300px; top: 300px; rotate: 30deg; transform-origin: 60px 20px;">Test
+                rotate</button>
+            ABC
+            <button
+                style="position: absolute; width: 41px; height: 37px; left: 50px; top: 5px; transform: perspective(50px) rotateX(45deg) ;">Test
+                2</button>
+            <button>Test</button>
+            <button
+                style="position: absolute; left: 50px; top: 50px; transform: perspective(200px) rotateX(45deg) ;">Test
+                3</button>
+            <div id="example-element" class="transition-all layer" style="transform-style: flat; background: #623e3f;
+            border-radius: .75rem;
+            color: #fff;
+            transform: perspective(200px) rotateY(30deg);
+            position: relative;
+            perspective: 50px;
+    top: 400px;
+    left: 50px;
+            ">
+                <p>Parent</p>
+                <div style="background-color: #ffba08;
+                border-radius: .2rem;
+                color: #000;
+                margin: 1rem;
+                padding: .2rem;
+                transform: rotate3d(1, 1, 1, 45deg);"><code>rotate3d(1, 1, 1, 45deg)</code></div>
+            </div>
+
+            <wc-test style="position: absolute; left: 230px;"></wc-test>
+            <wc-test style="position: absolute; left: 340px;">
+                <div style="margin: 5px; position: relative; left: -20px; top: 30px; background: lime;">AAAA</div>
+            </wc-test>
+            
+            <button style="position: absolute; left: 350px; top: 60px; rotate: 45deg;">Test Rotated</button>
+            <button
+                style="position: absolute; left: 350px; top: 360px; rotate: 70deg; width: 200px; height: 100px; padding: 40px; margin: 20px;">Test
+                Rotated</button>
+            <button style="position: absolute; left: 50px; top: 140px; width: 200px; height: 100px; padding: 20px;">Test
+                Padding</button>
+            <button
+                style="position: absolute; left: 50px; top: 260px; width: 200px; height: 100px; padding: 20px; border: 15px green solid;">Test
+                Padding 6 Border</button>
+
+            <div
+                style="position: absolute; left: 500px; top: 40px; width: 200px; height: 100px; background-color: lightgreen; rotate: -30deg;">
+                <div
+                    style="position: absolute; left: 20px; top: 180px; width: 160px; height: 80px; background-color: lightpink; rotate: -30deg; transform: skewX(30deg) skewY(10deg) scaleY(1.4);">
+                    <button style="position: absolute; left: 120px; top: 140px; padding: 10px; margin: 10px;">Inside of
+                        2 Transformed divs</button>
+                </div>
+            </div>
+
+            <svg width="300" height="130" xmlns="http://www.w3.org/2000/svg"
+                style="position: absolute; left: 50px; top: 540px;">
+                <rect width="200" height="100" x="10" y="10" rx="20" ry="20" fill="blue" />
+            </svg>
+
+            <svg width="300" height="130" xmlns="http://www.w3.org/2000/svg"
+                style="position: absolute; left: 50px; top: 940px; rotate: 45deg;">
+                <rect width="200" height="100" x="30" y="10" rx="20" ry="20" fill="blue" />
+            </svg>
+
+            <div
+                style="position: absolute; left: 450px; top: 750px; width: 400px; height: 50px; rotate: 45deg; background:lightgray; display: grid; grid-template-columns: 1fr 1fr;">
+                <button>MathML</button>
+                <math xmlns="http://www.w3.org/1998/Math/MathML">
+                    <msup>
+                        <mrow>
+                            <mo>(</mo>
+                            <mfrac>
+                                <mrow>
+                                    <mn>1</mn>
+                                    <mo>+</mo>
+                                    <mfrac>
+                                        <mn>2</mn>
+                                        <mn>3</mn>
+                                    </mfrac>
+                                </mrow>
+                                <mn>4</mn>
+                            </mfrac>
+                            <mo>)</mo>
+                        </mrow>
+                        <mn>5</mn>
+                    </msup>
+                </math>
+            </div>
+
+            <div
+                style="position: absolute; left: 50px; top: 1240px; width: 400px; height: 100px; rotate: 45deg; background:yellow; display: grid; grid-template-columns: 1fr 1fr;">
+                <button>Btn</button>
+                <svg width="300" height="130" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="200" height="100" x="30" y="10" rx="20" ry="20" fill="blue" />
+                </svg>
+            </div>
+            <div
+                style="position: absolute; left: 50px; top: 1640px; width: 400px; height: 100px; rotate: 75deg; background:yellow; display: grid; grid-template-columns: 1fr 1fr;">
+                <div
+                    style="position: relative; left: 50px; top: 100px; width: 400px; height: 100px; rotate: 45deg; background:yellow; display: grid; grid-template-columns: 1fr 1fr;">
+                    <button>AaAAAAA</button>
+                    <svg width="300" height="130" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="200" height="100" x="30" y="10" rx="20" ry="20" fill="blue" />
+                    </svg>
+                </div>
+            </div>
+            <div id="aaa" style="left:973px;top:307px;">
+                <template shadowrootmode="open">
+                    <style>
+                        :host {
+                            position: absolute;
+                            overflow: hidden;
+                            border: 1px solid black;
+                            font-size: 12px;
+                            font-family: "Segoe UI";
+                            white-space: nowrap;
+                        }
+                    </style>
+                    <div>
+                        <slot></slot>
+                    </div>
+                </template>
+                Alte Not-Halt Mobile Panel Steckplatz<br><br>und Fördererstich AE11/AE12.<br><br>Am Pnoz gebrückt. Im
+                Programm nur noch für<br><br>Diagnose, falls sie mal ausgelöst werden!
+            </div>
+            <div id="bbb" style="left:973px;top:507px; rotate: -35deg;">
+                <template shadowrootmode="open">
+                    <style>
+                        :host {
+                            position: absolute;
+                            overflow: hidden;
+                            border: 1px solid black;
+                            font-size: 12px;
+                            font-family: "Segoe UI";
+                            white-space: nowrap;
+                        }
+                    </style>
+                    <div>
+                        <slot></slot>
+                    </div>
+                </template>
+                Alte Not-Halt Mobile Panel Steckplatz<br><br>und Fördererstich AE11/AE12.<br><br>Am Pnoz gebrückt. Im
+                Programm nur noch für<br><br>Diagnose, falls sie mal ausgelöst werden!
+            </div>
+            <div id="ccc" style="left:973px;top:707px; rotate: -90deg;">
+                <template shadowrootmode="open">
+                    <style>
+                        :host {
+                            position: absolute;
+                            overflow: hidden;
+                            border: 1px solid black;
+                            font-size: 12px;
+                            font-family: "Segoe UI";
+                            white-space: nowrap;
+                        }
+                    </style>
+                    <div>
+                        <slot></slot>
+                    </div>
+                </template>
+                Alte Not-Halt Mobile Panel Steckplatz<br><br>und Fördererstich AE11/AE12.<br><br>Am Pnoz gebrückt. Im
+                Programm nur noch für<br><br>Diagnose, falls sie mal ausgelöst werden!
+            </div>
+        </div>
+        <svg id="overlay" style="position: absolute; left: 0px; top: 0px; pointer-events: none;"></svg>
+    </div>
+</body>
+<script type="module">
+    import { addPolyfill } from './getBoxQuads.js';
+    addPolyfill();
+
+
+    //A webcomponent for test of shadowdom support
+    let wcContents = [];
+    customElements.define(
+        "wc-test",
+        class WcTest extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                const template = (
+                    document.getElementById("wc-test-template")
+                );
+                let wcContent = template.content.cloneNode(true).children[0];
+                wcContents.push(wcContent);
+                shadowRoot.appendChild(wcContent);
+            }
+        }
+    );
+    // End of webcomponent
+
+    const overlay = document.getElementById('overlay');
+    const root = document.getElementById('root');
+    /** @type {HTMLSelectElement } */
+    const type = document.getElementById('type');
+    type.onchange = () => {
+        draw();
+    }
+
+    root.onclick = (e) => {
+        const ctl = e.composedPath()[0];
+        if (ctl == overlay)
+            return;
+
+        const bcr = root.getBoundingClientRect();
+
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        const p = ctl.convertPointFromNode(new DOMPoint(e.x - bcr.left, e.y - bcr.top), root, { fromBox: 'border', toBox: type.value });
+
+        if (window.webkitConvertPointFromNodeToPage) {
+            let wp = new WebKitPoint(e.x, e.y);
+            let p2 = webkitConvertPointFromNodeToPage(root, wp);
+            let p3 = webkitConvertPointFromPageToNode(ctl, p2);
+            console.log("conv point", wp, p, p3);
+        }
+
+
+        rect.setAttribute("x", p.x - 5);
+        rect.setAttribute("y", p.y - 5);
+        rect.setAttribute("width", 10);
+        rect.setAttribute("height", 10);
+
+        const cov = document.getElementById('click-overlay');
+        cov.appendChild(rect);
+        setTimeout(() => {
+            rect.remove()
+        }, 500);
+    }
+
+    function draw() {
+        overlay.innerHTML = "";
+        if (type.value === 'none')
+            return;
+        const ct = document.getElementById('container');
+        if (type.value === 'text') {
+            const iter = document.createNodeIterator(ct, NodeFilter.SHOW_TEXT);
+            let e;
+            while (e = iter.nextNode()) {
+                const pp = e.getBoxQuads({ box: 'border', relativeTo: root });
+                for (let p of pp) {
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+                    path.setAttribute("d", d);
+                    overlay.appendChild(path);
+                }
+            }
+        } else {
+            const all = Array.from(ct.querySelectorAll('*'));
+            all.push(...wcContents.map(x => x.children[0]));
+            all.push(ct.firstChild);
+            for (let e of all) {
+                const p = e.getBoxQuads({ box: type.value, relativeTo: root })[0];
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+                path.setAttribute("d", d);
+                overlay.appendChild(path);
+            }
+        }
+    }
+    draw();
+</script>
+
+</html>
