@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>getBoxQuads absolute SVG root repro</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: "Segoe UI", sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                linear-gradient(135deg, #f5f0e6 0%, #ece7dd 100%);
+            color: #1f252d;
+        }
+
+        .layout {
+            display: grid;
+            gap: 24px;
+            padding: 24px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid rgba(31, 37, 45, 0.12);
+            border-radius: 18px;
+            box-shadow: 0 18px 40px rgba(31, 37, 45, 0.12);
+            backdrop-filter: blur(10px);
+        }
+
+        .intro {
+            padding: 20px 22px;
+        }
+
+        .intro h1 {
+            margin: 0 0 8px;
+            font-size: 24px;
+            line-height: 1.15;
+        }
+
+        .intro p {
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .canvas-wrap {
+            position: relative;
+            padding: 18px;
+        }
+
+        #scene {
+            position: relative;
+            width: 720px;
+            height: 420px;
+            max-width: 100%;
+            margin: 0 auto;
+            overflow: hidden;
+            border-radius: 20px;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.85), transparent 35%),
+                linear-gradient(160deg, #2d4759 0%, #18242c 100%);
+        }
+
+        #grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        #container {
+            position: absolute;
+            left: 84px;
+            top: 78px;
+            width: 420px;
+            height: 240px;
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+        }
+
+        #target {
+            position: absolute;
+            right: 24px;
+            bottom: 28px;
+            width: 140px;
+            height: 92px;
+            overflow: visible;
+            filter: drop-shadow(0 12px 12px rgba(0, 0, 0, 0.35));
+        }
+
+        #overlay {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: visible;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            padding: 0 22px 18px;
+            font-size: 14px;
+        }
+
+        .legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend i {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border-radius: 999px;
+        }
+
+        .metrics {
+            padding: 0 22px 22px;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 13px;
+            line-height: 1.55;
+            white-space: pre-wrap;
+        }
+
+        @media (max-width: 760px) {
+            .layout {
+                padding: 16px;
+            }
+
+            .canvas-wrap {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="layout">
+        <section class="card intro">
+            <h1>Absolute root SVG diagnostic</h1>
+            <p>
+                This page compares <code>getBoundingClientRect()</code> with <code>getBoxQuads()</code> for an absolutely positioned root
+                <code>&lt;svg&gt;</code>. In current Chromium and Firefox builds, this setup resolves computed <code>left</code>/<code>top</code>
+                to pixel values, so it does <strong>not</strong> reproduce the earlier <code>left/top: auto</code> fallback path by itself.
+                It is useful as a geometry visualizer, not as proof for the fallback fix.
+            </p>
+        </section>
+
+        <section class="card">
+            <div class="canvas-wrap">
+                <div id="scene">
+                    <div id="grid"></div>
+                    <div id="container">
+                        <svg id="target" viewBox="0 0 140 92">
+                            <defs>
+                                <linearGradient id="fill-grad" x1="0" x2="1" y1="0" y2="1">
+                                    <stop offset="0%" stop-color="#ffd26a"></stop>
+                                    <stop offset="100%" stop-color="#ff7b54"></stop>
+                                </linearGradient>
+                            </defs>
+                            <rect x="4" y="4" width="132" height="84" rx="18" fill="url(#fill-grad)"></rect>
+                            <circle cx="38" cy="46" r="14" fill="#fff4d6"></circle>
+                            <path d="M64 29h44M64 46h34M64 63h24" stroke="#5b2418" stroke-width="8" stroke-linecap="round"></path>
+                        </svg>
+                    </div>
+                    <svg id="overlay"></svg>
+                </div>
+            </div>
+
+            <div class="legend">
+                <span><i style="background:#65d36e"></i>Bounding client rect</span>
+                <span><i style="background:#ff4b4b"></i>getBoxQuads result</span>
+                <span><i style="background:#39b9ff"></i>Quad corner markers</span>
+            </div>
+
+            <div id="metrics" class="metrics"></div>
+        </section>
+    </div>
+
+    <script type="module">
+        import { addPolyfill } from './getBoxQuads.js';
+
+        addPolyfill(window, true);
+
+        const overlay = document.getElementById('overlay');
+        const scene = document.getElementById('scene');
+        const target = document.getElementById('target');
+        const metrics = document.getElementById('metrics');
+
+        function svgEl(name, attrs) {
+            const el = document.createElementNS('http://www.w3.org/2000/svg', name);
+            for (const [key, value] of Object.entries(attrs)) {
+                el.setAttribute(key, String(value));
+            }
+            return el;
+        }
+
+        function quadToPath(quad) {
+            return `M ${quad.p1.x} ${quad.p1.y} L ${quad.p2.x} ${quad.p2.y} L ${quad.p3.x} ${quad.p3.y} L ${quad.p4.x} ${quad.p4.y} Z`;
+        }
+
+        function toScenePoint(point, sceneRect) {
+            return {
+                x: point.x - sceneRect.x,
+                y: point.y - sceneRect.y,
+            };
+        }
+
+        function draw() {
+            overlay.replaceChildren();
+
+            const sceneRect = scene.getBoundingClientRect();
+            const rect = target.getBoundingClientRect();
+            const quad = target.getBoxQuads({ relativeTo: document.body })[0];
+            const style = getComputedStyle(target);
+            const points = [quad.p1, quad.p2, quad.p3, quad.p4];
+            const allFinite = points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+            const hitsAutoFallbackCase = style.left === 'auto' || style.top === 'auto';
+            const localRect = {
+                x: rect.x - sceneRect.x,
+                y: rect.y - sceneRect.y,
+                width: rect.width,
+                height: rect.height,
+            };
+            const localQuad = allFinite ? {
+                p1: toScenePoint(quad.p1, sceneRect),
+                p2: toScenePoint(quad.p2, sceneRect),
+                p3: toScenePoint(quad.p3, sceneRect),
+                p4: toScenePoint(quad.p4, sceneRect),
+            } : null;
+            const localPoints = localQuad ? [localQuad.p1, localQuad.p2, localQuad.p3, localQuad.p4] : [];
+
+            overlay.append(
+                svgEl('rect', {
+                    x: localRect.x,
+                    y: localRect.y,
+                    width: localRect.width,
+                    height: localRect.height,
+                    fill: 'none',
+                    stroke: '#65d36e',
+                    'stroke-width': 3,
+                })
+            );
+
+            if (allFinite) {
+                overlay.append(
+                    svgEl('path', {
+                        d: quadToPath(localQuad),
+                        fill: 'none',
+                        stroke: '#ff4b4b',
+                        'stroke-width': 3,
+                    })
+                );
+
+                localPoints.forEach((point, index) => {
+                    overlay.append(
+                        svgEl('circle', {
+                            cx: point.x,
+                            cy: point.y,
+                            r: 4.5,
+                            fill: '#39b9ff',
+                            stroke: '#ffffff',
+                            'stroke-width': 1.5,
+                        })
+                    );
+
+                    const label = svgEl('text', {
+                        x: point.x + 8,
+                        y: point.y - 8,
+                        fill: '#ffffff',
+                        'font-size': 12,
+                        'font-family': 'Consolas, Courier New, monospace',
+                    });
+                    label.textContent = `p${index + 1}`;
+                    overlay.append(label);
+                });
+            }
+
+            metrics.textContent = [
+                `computed left/top: ${style.left} / ${style.top}`,
+                `auto fallback case active: ${hitsAutoFallbackCase}`,
+                `bounding rect: x=${rect.x.toFixed(2)} y=${rect.y.toFixed(2)} w=${rect.width.toFixed(2)} h=${rect.height.toFixed(2)}`,
+                `quad finite: ${allFinite}`,
+                `p1=(${quad.p1.x}, ${quad.p1.y})`,
+                `p2=(${quad.p2.x}, ${quad.p2.y})`,
+                `p3=(${quad.p3.x}, ${quad.p3.y})`,
+                `p4=(${quad.p4.x}, ${quad.p4.y})`,
+            ].join('\n');
+        }
+
+        draw();
+        window.addEventListener('resize', draw);
+    </script>
+</body>
+
+</html>
