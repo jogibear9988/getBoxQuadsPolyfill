@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html
+    class="client-js vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-feature-main-menu-pinned-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-custom-font-size-clientpref-1 vector-feature-appearance-pinned-clientpref-1 skin-theme-clientpref-day vector-toc-available skin-theme-clientpref-thumb-standard vector-animations-ready ve-available"
+    lang="de" dir="ltr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Swimming Pool (Cocktail) – Wikipedia</title>
+</head>
+
+<body>
+    if i use this code:
+
+    <visu-tag-root-canvas tag-root="CS.FM_L" node-projects-lock-at-design-time
+        style="width:100%;height:100%;top:0px;left:0px;"><template shadowrootmode="open">
+            <slot></slot>
+        </template><svg node-projects-lock-at-design-time
+            style="left:12.362px;top:139px;position:absolute;width:3045px;height:1261px;overflow:visible;stroke:#333;fill:none;stroke-width:7;">
+            <path
+                d="M 2041 1251 L 2041 960 L 1704 960 L 1704 834 L 10 834 L 10 182 L 1694 182 L 1694 10 L 2143 10 L 2143 86 L 2143 10 L 3035 10 L 3035 1250"
+                fill="none"></path>
+        </svg></visu-tag-root-canvas>
+
+    in the designer, the overlay for the path is wrong. it seems to be an error in getboxQuads polyfill, fix it
+
+</body>
+
+</html>
+<style>
+    #overlay>path {
+        fill: transparent;
+        stroke: red;
+        pointer-events: auto;
+    }
+</style>
+<script type="module">
+    import { addPolyfill } from './getBoxQuads.js';
+    addPolyfill();
+
+    const overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    overlay.setAttribute("id", "overlay");
+    overlay.style.position = 'absolute';
+    overlay.style.left = '0px';
+    overlay.style.top = '0px';
+    overlay.style.overflow = 'visible';
+    document.body.appendChild(overlay);
+
+    function draw() {
+        console.time('boxQ');
+        let lst = []
+        let i = 0;
+
+        const all = Array.from(document.body.querySelectorAll('path'));
+        for (let e of all) {
+            const p = e.getBoxQuads({ box: 'border', relativeTo: document.body })[0];
+            if (p) {
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const d = "M" + [p.p1, p.p2, p.p3, p.p4].map(x => x.x + ',' + x.y).join(' ') + 'Z ';
+                path.setAttribute("d", d);
+                path.setAttribute("id", (e.id ? e.id : i++));
+                lst.push(path);
+                //overlay.appendChild(path);
+            }
+        }
+
+
+        console.timeEnd('boxQ');
+        for (let p of lst) {
+            overlay.appendChild(p);
+        }
+    }
+
+    draw();
+
+</script>
+
+</html>
