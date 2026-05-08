@@ -118,9 +118,10 @@ export function patchAdoptNode(windowObj = window) {
 * @returns {DOMQuad}
 */
 export function convertQuadFromNode(node, quad, from, options) {
+    const iframes = getEffectiveIframes(node, from, options?.iframes);
     const ancestor = (node.ownerDocument.defaultView ?? window).document.body;
-    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, ancestor, options?.iframes, true);
-    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, ancestor, options?.iframes, true).inverse();
+    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, ancestor, iframes, true);
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, ancestor, iframes, true).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
         const fromStyle = getCachedComputedStyle(from);
         quad = new DOMQuad(transformPointBox(quad.p1, options.fromBox, fromStyle, -1), transformPointBox(quad.p2, options.fromBox, fromStyle, -1), transformPointBox(quad.p3, options.fromBox, fromStyle, -1), transformPointBox(quad.p4, options.fromBox, fromStyle, -1))
@@ -141,9 +142,10 @@ export function convertQuadFromNode(node, quad, from, options) {
 * @returns {DOMQuad}
 */
 export function convertRectFromNode(node, rect, from, options) {
+    const iframes = getEffectiveIframes(node, from, options?.iframes);
     const ancestor = (node.ownerDocument.defaultView ?? window).document.body.parentElement;
-    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, ancestor, options?.iframes, true);
-    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, ancestor, options?.iframes, true).inverse();
+    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, ancestor, iframes, true);
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, ancestor, iframes, true).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
         const p = transformPointBox(new DOMPoint(rect.x, rect.y), options.fromBox, getCachedComputedStyle(from), 1);
         rect = new DOMRect(p.x, p.y, rect.width, rect.height);
@@ -164,9 +166,10 @@ export function convertRectFromNode(node, rect, from, options) {
 * @returns {DOMPoint}
 */
 export function convertPointFromNode(node, point, from, options) {
+    const iframes = getEffectiveIframes(node, from, options?.iframes);
     const ancestor = (node.ownerDocument.defaultView ?? window).document.body.parentElement;
-    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, ancestor, options?.iframes, true);
-    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, ancestor, options?.iframes, true).inverse();
+    const m1 = getResultingTransformationBetweenElementAndAllAncestors(from, ancestor, iframes, true);
+    const m2 = getResultingTransformationBetweenElementAndAllAncestors(node, ancestor, iframes, true).inverse();
     if (options?.fromBox && options?.fromBox !== 'border') {
         point = transformPointBox(point, options.fromBox, getCachedComputedStyle(from), 1);
     }
@@ -216,6 +219,40 @@ let transformCache;
 /** @type { WeakMap<Node, CSSStyleDeclaration> } */
 let computedStyleCache;
 let hashId = 0;
+
+/**
+* @param {Node} node
+* @param {Node} relativeTo
+* @param {HTMLIFrameElement[]=} iframes
+* @returns {HTMLIFrameElement[] | undefined}
+*/
+function getEffectiveIframes(node, relativeTo, iframes) {
+    if (node.ownerDocument === relativeTo.ownerDocument) {
+        return iframes;
+    }
+
+    let result = iframes;
+    result = addFrameChain(result, node.ownerDocument, relativeTo.ownerDocument);
+    result = addFrameChain(result, relativeTo.ownerDocument, node.ownerDocument);
+    return result;
+}
+
+function addFrameChain(iframes, sourceDocument, targetDocument) {
+    let result = iframes;
+    let currentWindow = sourceDocument.defaultView;
+    while (currentWindow?.frameElement) {
+        const frameElement = currentWindow.frameElement;
+        const frameWindow = frameElement.ownerDocument.defaultView ?? window;
+        if (frameElement instanceof frameWindow.HTMLIFrameElement && !result?.includes(frameElement)) {
+            result = result ? [...result, frameElement] : [frameElement];
+        }
+        if (frameElement.ownerDocument === targetDocument) {
+            break;
+        }
+        currentWindow = frameElement.ownerDocument.defaultView;
+    }
+    return result;
+}
 
 export function clearCache() {
     boxQuadsCache.clear();
@@ -324,6 +361,7 @@ function getElementTransformWithZoom(element, iframes, includeZoom = true) {
 export function getBoxQuads(node, options) {
     const defaultRelativeTo = node.ownerDocument.documentElement ?? node.ownerDocument.body;
     const relativeTo = options?.relativeTo ?? defaultRelativeTo;
+    const iframes = getEffectiveIframes(node, relativeTo, options?.iframes);
     let key;
     if (boxQuadsCache) {
         let i1 = hash.get(node);
@@ -339,7 +377,7 @@ export function getBoxQuads(node, options) {
     }
 
     /** @type {DOMMatrix} */
-    let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(node, relativeTo, options?.iframes);
+    let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(node, relativeTo, iframes);
 
     // FIX 13: Cache cross-realm constructors once per call.
     const win = node.ownerDocument.defaultView ?? window;
@@ -380,7 +418,7 @@ export function getBoxQuads(node, options) {
                 rect.height,
             );
             return convertRectFromNode(relativeTo, rectInViewportRoot, viewportRoot, {
-                iframes: options?.iframes,
+                iframes,
             });
         };
 
@@ -403,9 +441,9 @@ export function getBoxQuads(node, options) {
             // We convert that center to parent-local space, recover the fragment's
             // local dimensions via the 2x2 AABB system, then apply the parent's
             // accumulated matrix to build proper (rotated) quads in relativeTo-space.
-            const parent = getParentElementIncludingSlots(node, options?.iframes);
-            const M_parent = getResultingTransformationBetweenElementAndAllAncestors(parent, relativeTo, options?.iframes);
-            const parentCss = getElementCombinedTransform(parent, options?.iframes);
+            const parent = getParentElementIncludingSlots(node, iframes);
+            const M_parent = getResultingTransformationBetweenElementAndAllAncestors(parent, relativeTo, iframes);
+            const parentCss = getElementCombinedTransform(parent, iframes);
             const pr = parent.getBoundingClientRect();
             const pa = parentCss.a, pb = parentCss.b, pc = parentCss.c, pd = parentCss.d;
             // AABB center of the transformed parent equals its geometric center.
@@ -457,7 +495,7 @@ export function getBoxQuads(node, options) {
                     M_parent.transformPoint(new DOMPoint(lx + tw, ly + th)),
                     M_parent.transformPoint(new DOMPoint(lx,      ly + th))
                 );
-                quads.push(toViewportRelativeDocumentElementQuad(quad, node, relativeTo, options?.iframes));
+                quads.push(toViewportRelativeDocumentElementQuad(quad, node, relativeTo, iframes));
             }
 
             if (quads.length > 0) {
@@ -494,7 +532,7 @@ export function getBoxQuads(node, options) {
                 tPoints[i] = as2DPoint(tPoints[i]);
             }
         }
-        const tQuad = [toViewportRelativeDocumentElementQuad(new DOMQuad(tPoints[0], tPoints[1], tPoints[2], tPoints[3]), node, relativeTo, options?.iframes)];
+        const tQuad = [toViewportRelativeDocumentElementQuad(new DOMQuad(tPoints[0], tPoints[1], tPoints[2], tPoints[3]), node, relativeTo, iframes)];
         if (boxQuadsCache) boxQuadsCache.set(key, tQuad);
         return tQuad;
     }
@@ -519,7 +557,7 @@ export function getBoxQuads(node, options) {
             new DOMPoint(x1, y1),
             new DOMPoint(x0, y1),
         ];
-        const screenCtm = !hasTransformedHtmlAncestor(node, relativeTo, options?.iframes) ? node.getScreenCTM() : null;
+        const screenCtm = !hasTransformedHtmlAncestor(node, relativeTo, iframes) ? node.getScreenCTM() : null;
         if (screenCtm) {
             const screenQuad = new DOMQuad(
                 screenPts[0].matrixTransform(screenCtm),
@@ -527,7 +565,7 @@ export function getBoxQuads(node, options) {
                 screenPts[2].matrixTransform(screenCtm),
                 screenPts[3].matrixTransform(screenCtm),
             );
-            const svgQuad = [convertViewportQuadToRelativeNode(screenQuad, node, relativeTo, options?.iframes)];
+            const svgQuad = [convertViewportQuadToRelativeNode(screenQuad, node, relativeTo, iframes)];
             if (boxQuadsCache) boxQuadsCache.set(key, svgQuad);
             return svgQuad;
         }
@@ -544,7 +582,7 @@ export function getBoxQuads(node, options) {
                 points[i] = as2DPoint(points[i]);
             }
         }
-        const svgQuad = [toViewportRelativeDocumentElementQuad(new DOMQuad(points[0], points[1], points[2], points[3]), node, relativeTo, options?.iframes)];
+        const svgQuad = [toViewportRelativeDocumentElementQuad(new DOMQuad(points[0], points[1], points[2], points[3]), node, relativeTo, iframes)];
         if (boxQuadsCache) boxQuadsCache.set(key, svgQuad);
         return svgQuad;
     }
@@ -634,7 +672,7 @@ export function getBoxQuads(node, options) {
                     points[i] = as2DPoint(points[i]);
                 }
             }
-            const quad = [toViewportRelativeDocumentElementQuad(new DOMQuad(points[0], points[1], points[2], points[3]), node, relativeTo, options?.iframes)];
+            const quad = [toViewportRelativeDocumentElementQuad(new DOMQuad(points[0], points[1], points[2], points[3]), node, relativeTo, iframes)];
             if (boxQuadsCache) boxQuadsCache.set(key, quad);
             return quad;
         }
@@ -660,7 +698,7 @@ export function getBoxQuads(node, options) {
         }
     }
 
-    const quad = [toViewportRelativeDocumentElementQuad(new DOMQuad(points[0], points[1], points[2], points[3]), node, relativeTo, options?.iframes)];
+    const quad = [toViewportRelativeDocumentElementQuad(new DOMQuad(points[0], points[1], points[2], points[3]), node, relativeTo, iframes)];
     if (boxQuadsCache)
         boxQuadsCache.set(key, quad);
     return quad;
