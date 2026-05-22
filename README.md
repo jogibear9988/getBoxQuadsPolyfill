@@ -5,6 +5,14 @@ a polyfill for the getBoxQuads API
 
     npm i get-box-quads-polyfill
 
+# demo
+
+    https://jogibear9988.github.io/getBoxQuadsPolyfill/
+
+    or a app wich uses it (html designer)
+    
+    https://node-projects.github.io/web-component-designer-demo/index.html
+    
 # usage
 
 ## add polyfill
