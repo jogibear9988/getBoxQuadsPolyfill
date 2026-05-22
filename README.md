@@ -7,11 +7,11 @@ a polyfill for the getBoxQuads API
 
 # demo
 
-    https://jogibear9988.github.io/getBoxQuadsPolyfill/
+* https://jogibear9988.github.io/getBoxQuadsPolyfill/
 
-    or a app wich uses it (html designer)
+or a app wich uses it (html designer)
     
-    https://node-projects.github.io/web-component-designer-demo/index.html
+* https://node-projects.github.io/web-component-designer-demo/index.html
     
 # usage
 
