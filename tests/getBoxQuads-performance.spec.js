@@ -3,7 +3,7 @@ import { resolve } from 'path';
 import { chromium, expect, firefox, test } from '@playwright/test';
 
 const ROOT = resolve(import.meta.dirname, '..');
-const POLYFILL_SOURCE = readFileSync(resolve(ROOT, 'getBoxQuads.js'), 'utf8').replace(/^export\s+/gm, '');
+const POLYFILL_SOURCE = readFileSync(resolve(ROOT, process.env.POLYFILL_SOURCE_PATH ?? 'getBoxQuads.js'), 'utf8').replace(/^export\s+/gm, '');
 
 async function injectPolyfill(page) {
     await page.addScriptTag({
@@ -33,6 +33,73 @@ async function collectSampleQuads(page, indices) {
 
 test.describe('getBoxQuads performance', () => {
     test.use({ viewport: { width: 1680, height: 1200 } });
+
+    test('compares uncached ancestor-relative calls with a baseline in alternating passes', async ({ browser }, testInfo) => {
+        test.skip(!process.env.POLYFILL_BASELINE_PATH, 'Set POLYFILL_BASELINE_PATH to a saved polyfill source file.');
+        const baselineSource = readFileSync(resolve(ROOT, process.env.POLYFILL_BASELINE_PATH), 'utf8').replace(/^export\s+/gm, '');
+        const fixture = readFileSync(resolve(ROOT, 'perf.html'), 'utf8')
+            .replace("getNumber('groups', 28", "getNumber('groups', 8")
+            .replace("getNumber('items', 30", "getNumber('items', 10");
+        const context = await browser.newContext({ viewport: { width: 1680, height: 1200 } });
+        try {
+            const baseline = await context.newPage();
+            const candidate = await context.newPage();
+            for (const { page, source } of [{ page: baseline, source: baselineSource }, { page: candidate, source: POLYFILL_SOURCE }]) {
+                await page.setContent(fixture);
+                await page.addScriptTag({ content: `${source}\naddPolyfill(window, true);` });
+            }
+            async function run(page, measureQuads = false) {
+                return page.evaluate((measureQuads) => {
+                    const relativeTo = document.getElementById('benchmark-anchor');
+                    /** @type {Node[]} */
+                    const targets = [...document.querySelectorAll('[data-bench-target]')];
+                    const walk = document.createTreeWalker(document.getElementById('scene'), NodeFilter.SHOW_TEXT);
+                    let node;
+                    while ((node = walk.nextNode())) if (node.textContent.trim()) targets.push(node);
+                    const points = [];
+                    let quads = 0;
+                    const start = performance.now();
+                    for (const target of targets) {
+                        const result = target.getBoxQuads({ relativeTo });
+                        quads += result.length;
+                        if (measureQuads) {
+                            for (const quad of result) for (const point of [quad.p1, quad.p2, quad.p3, quad.p4]) points.push(point.x, point.y);
+                        }
+                    }
+                    return { ms: performance.now() - start, calls: targets.length, quads, points };
+                }, measureQuads);
+            }
+            const expected = await run(baseline, true);
+            const actual = await run(candidate, true);
+            expect(actual.points.length).toBe(expected.points.length);
+            const maxDelta = Math.max(...actual.points.map((value, index) => Math.abs(value - expected.points[index])));
+            expect(maxDelta).toBeLessThan(1e-5);
+
+            const samples = { baseline: [], candidate: [] };
+            for (let pass = 0; pass < 9; pass++) {
+                const order = pass % 2 ? ['candidate', 'baseline'] : ['baseline', 'candidate'];
+                for (const name of order) {
+                    const sample = await run(name === 'baseline' ? baseline : candidate);
+                    expect(sample.quads).toBe(expected.quads);
+                    if (pass >= 2) samples[name].push(sample.ms);
+                }
+            }
+            const median = (values) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+            const result = {
+                callsPerPass: expected.calls,
+                quadsPerPass: expected.quads,
+                maxCoordinateDelta: maxDelta,
+                baselineMedianMs: median(samples.baseline),
+                candidateMedianMs: median(samples.candidate),
+                speedup: median(samples.baseline) / median(samples.candidate),
+                samplesMs: samples,
+            };
+            await testInfo.attach('ancestor-relative-comparison', { body: JSON.stringify(result, null, 2), contentType: 'application/json' });
+            console.log(JSON.stringify(result, null, 2));
+        } finally {
+            await context.close();
+        }
+    });
 
     test('matches Firefox native quads relative to a transformed ancestor', async () => {
         test.slow();
@@ -127,14 +194,15 @@ test.describe('getBoxQuads performance', () => {
                 return { durationMs: performance.now() - start, quadCount };
             }
 
-            function runMixedPass() {
+            /** @param {{box?: 'border', relativeTo?: Element}} options */
+            function runMixedPass(options = { box: 'border', relativeTo }) {
                 const start = performance.now();
                 let quadCount = 0;
                 for (const target of targets) {
-                    quadCount += target.getBoxQuads({ box: 'border', relativeTo }).length;
+                    quadCount += target.getBoxQuads(options).length;
                 }
                 for (const currentTextNode of textNodes) {
-                    quadCount += currentTextNode.getBoxQuads({ relativeTo }).length;
+                    quadCount += currentTextNode.getBoxQuads(options).length;
                 }
                 return { durationMs: performance.now() - start, quadCount };
             }
@@ -160,6 +228,31 @@ test.describe('getBoxQuads performance', () => {
                 mixedQuadsPerPass = result.quadCount;
             }
 
+            function measureMixed(runPass, prepare = () => {}) {
+                for (let index = 0; index < warmupPasses; index += 1) {
+                    prepare();
+                    runPass();
+                }
+                const samples = [];
+                let quadCount;
+                for (let index = 0; index < measuredPasses; index += 1) {
+                    prepare();
+                    const result = runPass();
+                    samples.push(result.durationMs);
+                    quadCount = result.quadCount;
+                }
+                return summarize(samples, targets.length + textNodes.length, quadCount);
+            }
+
+            // layout2vector measures both elements and text in viewport space.
+            const viewportMixed = measureMixed(() => runMixedPass({ box: 'border' }));
+            // The designer explicitly caches, invalidating before each refresh.
+            // @ts-ignore Injected polyfill API.
+            useCache();
+            // @ts-ignore Injected polyfill API.
+            const cachedColdMixed = measureMixed(() => runMixedPass(), () => clearCache());
+            const cachedWarmMixed = measureMixed(() => runMixedPass());
+
             return {
                 browserNowOrigin: performance.timeOrigin,
                 fixture: {
@@ -174,6 +267,9 @@ test.describe('getBoxQuads performance', () => {
                     measuredPasses,
                     elementOnly: summarize(elementSamples, targets.length, elementQuadsPerPass),
                     mixedNodes: summarize(mixedSamples, targets.length + textNodes.length, mixedQuadsPerPass),
+                    viewportMixed,
+                    cachedColdMixed,
+                    cachedWarmMixed,
                 },
             };
         });
@@ -208,6 +304,9 @@ test.describe('getBoxQuads performance', () => {
                 medianMs: artifact.measurements.mixedNodes.medianMs,
                 meanUsPerCall: artifact.measurements.mixedNodes.meanUsPerCall,
             },
+            viewportMixedMedianMs: artifact.measurements.viewportMixed.medianMs,
+            cachedColdMixedMedianMs: artifact.measurements.cachedColdMixed.medianMs,
+            cachedWarmMixedMedianMs: artifact.measurements.cachedWarmMixed.medianMs,
             outputPath,
         }, null, 2));
     });

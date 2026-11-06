@@ -76,7 +76,6 @@ export function addPolyfill(windowObj = window, force = false) {
         }
     }
 }
-
 /**
 * @param {globalThis} windowObj?
 */
@@ -109,7 +108,6 @@ export function patchAdoptNode(windowObj = window) {
         }
     }
 }
-
 /**
 * @param {Node} node
 * @param {DOMQuadInit} quad
@@ -132,7 +130,6 @@ export function convertQuadFromNode(node, quad, from, options) {
     }
     return res;
 }
-
 /**
 * @param {Node} node
 * @param {{x: number, y: number, width: number, height: number}} rect
@@ -155,7 +152,6 @@ export function convertRectFromNode(node, rect, from, options) {
     }
     return res;
 }
-
 /**
 * @param {Node} node
 * @param {DOMPointInit} point
@@ -176,7 +172,6 @@ export function convertPointFromNode(node, point, from, options) {
     }
     return res;
 }
-
 /**
 * @param {DOMPointInit} point
 * @param {'margin'|'border'|'padding'|'content'} box
@@ -206,7 +201,6 @@ function transformPointBox(point, box, style, operator) {
     //@ts-ignore
     return point;
 }
-
 /** @type { WeakMap<Node, number> } */
 let hash;
 /** @type { Map<string, DOMQuad[]> } */
@@ -229,7 +223,6 @@ export function useCache() {
     transformCache = new Map();
     computedStyleCache = new WeakMap();
 }
-
 /**
 * @param {Element} element
 * @returns {CSSStyleDeclaration}
@@ -245,7 +238,6 @@ function getCachedComputedStyle(element) {
     }
     return style;
 }
-
 /**
 * @param {Node} node
 * @returns {boolean}
@@ -253,7 +245,6 @@ function getCachedComputedStyle(element) {
 function isElementNode(node) {
     return !!node && node.nodeType === Node.ELEMENT_NODE;
 }
-
 /**
 * @param {Node} element
 * @returns {number}
@@ -276,7 +267,6 @@ function getElementZoom(element) {
     const value = parseFloat(zoom);
     return Number.isFinite(value) && value > 0 ? value : 1;
 }
-
 /**
 * `zoom` scales the element's internal coordinate space while also shifting the
 * element within its parent from the top-center anchor in the default writing-mode.
@@ -295,7 +285,6 @@ function getElementZoomScaleTransform(element) {
     }
     return new DOMMatrix().scaleSelf(zoom);
 }
-
 /**
 * @param {Node} element
 * @param {HTMLIFrameElement[]=} iframes
@@ -307,13 +296,31 @@ function getElementTransformWithZoom(element, iframes, includeZoom = true) {
     if (!includeZoom || !isElementNode(element)) {
         return transform;
     }
-    const zoomTransform = getElementZoomScaleTransform(element);
-    if (zoomTransform.isIdentity) {
+    const zoom = getElementZoom(element);
+    if (zoom === 1) {
         return transform;
     }
     // `zoom` scales transform translations as well as the element's local axes,
     // so it needs to wrap the transform matrix instead of being appended to it.
-    return zoomTransform.multiply(transform);
+    return new DOMMatrix().scaleSelf(zoom).multiplySelf(transform);
+}
+/**
+* @param {Node} node
+* @param {{box?: 'margin'|'border'|'padding'|'content', relativeTo?: Element, iframes?: HTMLIFrameElement[]}=} options
+* @returns {DOMQuad[]}
+*/
+export function getBoxQuads(node, options) {
+    if (computedStyleCache) {
+        return getBoxQuadsInternal(node, options);
+    }
+    // Share style reads within this synchronous measurement only. Calls after a
+    // DOM mutation still get fresh styles unless useCache() was explicitly used.
+    computedStyleCache = new WeakMap();
+    try {
+        return getBoxQuadsInternal(node, options);
+    } finally {
+        computedStyleCache = undefined;
+    }
 }
 
 /**
@@ -321,9 +328,10 @@ function getElementTransformWithZoom(element, iframes, includeZoom = true) {
 * @param {{box?: 'margin'|'border'|'padding'|'content', relativeTo?: Element, iframes?: HTMLIFrameElement[]}=} options
 * @returns {DOMQuad[]}
 */
-export function getBoxQuads(node, options) {
+function getBoxQuadsInternal(node, options) {
     const defaultRelativeTo = node.ownerDocument.documentElement ?? node.ownerDocument.body;
     const relativeTo = options?.relativeTo ?? defaultRelativeTo;
+    const viewportRoot = node.ownerDocument.documentElement ?? node.ownerDocument.body;
     let key;
     if (boxQuadsCache) {
         let i1 = hash.get(node);
@@ -338,8 +346,14 @@ export function getBoxQuads(node, options) {
             return q;
     }
 
+    const resolveFixedThroughViewport = relativeTo !== viewportRoot && shouldResolveFixedPositionThroughViewport(node, relativeTo, options?.iframes);
+
     /** @type {DOMMatrix} */
-    let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(node, relativeTo, options?.iframes);
+    let originalElementAndAllParentsMultipliedMatrix = getResultingTransformationBetweenElementAndAllAncestors(
+        node,
+        resolveFixedThroughViewport ? viewportRoot : relativeTo,
+        options?.iframes
+    );
 
     // FIX 13: Cache cross-realm constructors once per call.
     const win = node.ownerDocument.defaultView ?? window;
@@ -404,7 +418,11 @@ export function getBoxQuads(node, options) {
             // local dimensions via the 2x2 AABB system, then apply the parent's
             // accumulated matrix to build proper (rotated) quads in relativeTo-space.
             const parent = getParentElementIncludingSlots(node, options?.iframes);
-            const M_parent = getResultingTransformationBetweenElementAndAllAncestors(parent, relativeTo, options?.iframes);
+            const M_parent = getResultingTransformationBetweenElementAndAllAncestors(
+                parent,
+                resolveFixedThroughViewport ? viewportRoot : relativeTo,
+                options?.iframes
+            );
             const parentCss = getElementCombinedTransform(parent, options?.iframes);
             const pr = parent.getBoundingClientRect();
             const pa = parentCss.a, pb = parentCss.b, pc = parentCss.c, pd = parentCss.d;
@@ -457,7 +475,7 @@ export function getBoxQuads(node, options) {
                     M_parent.transformPoint(new DOMPoint(lx + tw, ly + th)),
                     M_parent.transformPoint(new DOMPoint(lx,      ly + th))
                 );
-                quads.push(toViewportRelativeDocumentElementQuad(quad, node, relativeTo, options?.iframes));
+                quads.push(finishQuadRelativeToTarget(quad, node, relativeTo, options?.iframes, resolveFixedThroughViewport, options?.box));
             }
 
             if (quads.length > 0) {
@@ -494,75 +512,60 @@ export function getBoxQuads(node, options) {
                 tPoints[i] = as2DPoint(tPoints[i]);
             }
         }
-        const tQuad = [toViewportRelativeDocumentElementQuad(new DOMQuad(tPoints[0], tPoints[1], tPoints[2], tPoints[3]), node, relativeTo, options?.iframes)];
+        const tQuad = [finishQuadRelativeToTarget(new DOMQuad(tPoints[0], tPoints[1], tPoints[2], tPoints[3]), node, relativeTo, options?.iframes, resolveFixedThroughViewport, options?.box)];
         if (boxQuadsCache) boxQuadsCache.set(key, tQuad);
         return tQuad;
     }
 
     if ((node instanceof SVGGraphicsElement || node instanceof _SVGGraphicsElement)
         && !((node instanceof SVGSVGElement || node instanceof _SVGSVGElement))) {
-        const canUseViewportSvgRect = originalElementAndAllParentsMultipliedMatrix.is2D
-            && Math.abs(originalElementAndAllParentsMultipliedMatrix.b) < 1e-10
-            && Math.abs(originalElementAndAllParentsMultipliedMatrix.c) < 1e-10;
-
-        if (canUseViewportSvgRect) {
-            const viewportRoot = node.ownerDocument.documentElement ?? node.ownerDocument.body;
-            let rect = node.getBoundingClientRect();
-            const bbox = node.getBBox();
-            const svgStyle = getCachedComputedStyle(node);
-            const strokeWidth = svgStyle.stroke !== 'none' ? parseFloat(svgStyle.strokeWidth) || 0 : 0;
-            const needsStrokeInflation = strokeWidth > 0
-                && Math.abs(rect.width - bbox.width) < 0.5
-                && Math.abs(rect.height - bbox.height) < 0.5
-                && node.ownerSVGElement;
-
-            if (needsStrokeInflation) {
-                const strokeInflation = getSvgStrokeInflation(node, bbox, strokeWidth);
-                const scaleX = getSvgBBoxScale(rect.width, bbox.width, rect.height, bbox.height);
-                const scaleY = getSvgBBoxScale(rect.height, bbox.height, rect.width, bbox.width);
-                rect = new DOMRect(
-                    rect.x - strokeInflation.left * scaleX,
-                    rect.y - strokeInflation.top * scaleY,
-                    rect.width + (strokeInflation.left + strokeInflation.right) * scaleX,
-                    rect.height + (strokeInflation.top + strokeInflation.bottom) * scaleY,
-                );
-            }
-
-            let svgQuad;
-            if (relativeTo === node.ownerDocument.documentElement) {
-                svgQuad = [new DOMQuad(
-                    new DOMPoint(rect.x, rect.y),
-                    new DOMPoint(rect.x + rect.width, rect.y),
-                    new DOMPoint(rect.x + rect.width, rect.y + rect.height),
-                    new DOMPoint(rect.x, rect.y + rect.height),
-                )];
-            } else if (relativeTo === node.ownerDocument.body) {
-                const relativeRect = relativeTo.getBoundingClientRect();
-                const relativeX = rect.x - relativeRect.x + relativeTo.scrollLeft;
-                const relativeY = rect.y - relativeRect.y + relativeTo.scrollTop;
-                svgQuad = [new DOMQuad(
-                    new DOMPoint(relativeX, relativeY),
-                    new DOMPoint(relativeX + rect.width, relativeY),
-                    new DOMPoint(relativeX + rect.width, relativeY + rect.height),
-                    new DOMPoint(relativeX, relativeY + rect.height),
-                )];
-            } else {
-                const viewportRootRect = viewportRoot?.getBoundingClientRect();
-                const rectInViewportRoot = new DOMRect(
-                    rect.x - (viewportRootRect?.x ?? 0),
-                    rect.y - (viewportRootRect?.y ?? 0),
-                    rect.width,
-                    rect.height,
-                );
-                svgQuad = [convertRectFromNode(relativeTo, rectInViewportRoot, viewportRoot, {
-                    iframes: options?.iframes,
-                })];
-            }
+        const bbox = node.getBBox();
+        const visualBox = getSvgVisualBox(node, bbox);
+        const x0 = visualBox.x - bbox.x;
+        const y0 = visualBox.y - bbox.y;
+        const x1 = x0 + visualBox.width;
+        const y1 = y0 + visualBox.height;
+        const screenPts = [
+            new DOMPoint(visualBox.x, visualBox.y),
+            new DOMPoint(visualBox.x + visualBox.width, visualBox.y),
+            new DOMPoint(visualBox.x + visualBox.width, visualBox.y + visualBox.height),
+            new DOMPoint(visualBox.x, visualBox.y + visualBox.height),
+        ];
+        const pts = [
+            new DOMPoint(x0, y0),
+            new DOMPoint(x1, y0),
+            new DOMPoint(x1, y1),
+            new DOMPoint(x0, y1),
+        ];
+        const screenCtm = !hasTransformedHtmlAncestor(node, relativeTo, options?.iframes) ? node.getScreenCTM() : null;
+        if (screenCtm) {
+            const screenQuad = new DOMQuad(
+                screenPts[0].matrixTransform(screenCtm),
+                screenPts[1].matrixTransform(screenCtm),
+                screenPts[2].matrixTransform(screenCtm),
+                screenPts[3].matrixTransform(screenCtm),
+            );
+            const svgQuad = [convertViewportQuadToRelativeNode(screenQuad, node, relativeTo, options?.iframes)];
             if (boxQuadsCache) boxQuadsCache.set(key, svgQuad);
             return svgQuad;
         }
-    }
 
+        /** @type {[DOMPoint,DOMPoint,DOMPoint,DOMPoint]} */
+        //@ts-ignore
+        const points = Array(4);
+        if (originalElementAndAllParentsMultipliedMatrix.is2D) {
+            for (let i = 0; i < 4; i++)
+                points[i] = pts[i].matrixTransform(originalElementAndAllParentsMultipliedMatrix);
+        } else {
+            for (let i = 0; i < 4; i++) {
+                points[i] = projectPoint(pts[i], originalElementAndAllParentsMultipliedMatrix).matrixTransform(originalElementAndAllParentsMultipliedMatrix);
+                points[i] = as2DPoint(points[i]);
+            }
+        }
+        const svgQuad = [finishQuadRelativeToTarget(new DOMQuad(points[0], points[1], points[2], points[3]), node, relativeTo, options?.iframes, resolveFixedThroughViewport, options?.box)];
+        if (boxQuadsCache) boxQuadsCache.set(key, svgQuad);
+        return svgQuad;
+    }
     if (
         (node instanceof win.Element)
         && relativeTo === node.ownerDocument.documentElement
@@ -648,7 +651,7 @@ export function getBoxQuads(node, options) {
                     points[i] = as2DPoint(points[i]);
                 }
             }
-            const quad = [toViewportRelativeDocumentElementQuad(new DOMQuad(points[0], points[1], points[2], points[3]), node, relativeTo, options?.iframes)];
+            const quad = [finishQuadRelativeToTarget(new DOMQuad(points[0], points[1], points[2], points[3]), node, relativeTo, options?.iframes, resolveFixedThroughViewport, options?.box)];
             if (boxQuadsCache) boxQuadsCache.set(key, quad);
             return quad;
         }
@@ -674,24 +677,236 @@ export function getBoxQuads(node, options) {
         }
     }
 
-    const quad = [toViewportRelativeDocumentElementQuad(new DOMQuad(points[0], points[1], points[2], points[3]), node, relativeTo, options?.iframes)];
+    const quad = [finishQuadRelativeToTarget(new DOMQuad(points[0], points[1], points[2], points[3]), node, relativeTo, options?.iframes, resolveFixedThroughViewport, options?.box)];
     if (boxQuadsCache)
         boxQuadsCache.set(key, quad);
     return quad;
+}
+
+function finishQuadRelativeToTarget(quad, node, relativeTo, iframes, resolveFixedThroughViewport, box) {
+    if (resolveFixedThroughViewport) {
+        quad = alignViewportBorderQuadToRenderedBox(quad, node, box);
+        return convertViewportQuadToRelativeNode(quad, node, relativeTo, iframes);
+    }
+    return toViewportRelativeDocumentElementQuad(quad, node, relativeTo, iframes);
+}
+
+function alignViewportBorderQuadToRenderedBox(quad, node, box) {
+    if (box && box !== 'border') {
+        return quad;
+    }
+
+    const win = node.ownerDocument.defaultView ?? window;
+    if (!(node instanceof win.Element)) {
+        return quad;
+    }
+
+    const rect = node.getBoundingClientRect();
+    const left = Math.min(quad.p1.x, quad.p2.x, quad.p3.x, quad.p4.x);
+    const top = Math.min(quad.p1.y, quad.p2.y, quad.p3.y, quad.p4.y);
+    const dx = rect.left - left;
+    const dy = rect.top - top;
+    if (Math.abs(dx) < 1e-10 && Math.abs(dy) < 1e-10) {
+        return quad;
+    }
+
+    const translate = (point) => new DOMPoint(point.x + dx, point.y + dy, point.z, point.w);
+    return new DOMQuad(translate(quad.p1), translate(quad.p2), translate(quad.p3), translate(quad.p4));
+}
+
+function convertViewportQuadToRelativeNode(quad, node, relativeTo, iframes) {
+    const viewportRoot = node.ownerDocument.documentElement ?? node.ownerDocument.body;
+    if (relativeTo === viewportRoot) {
+        return quad;
+    }
+
+    const win = node.ownerDocument.defaultView ?? window;
+    if (relativeTo instanceof win.SVGElement) {
+        const relativeScreenCtm = relativeTo.getScreenCTM();
+        if (relativeScreenCtm) {
+            const inverse = relativeScreenCtm.inverse();
+            return new DOMQuad(
+                quad.p1.matrixTransform(inverse),
+                quad.p2.matrixTransform(inverse),
+                quad.p3.matrixTransform(inverse),
+                quad.p4.matrixTransform(inverse),
+            );
+        }
+    }
+
+    if (relativeTo.ownerDocument === node.ownerDocument && relativeTo instanceof win.HTMLElement) {
+        const htmlQuad = convertViewportQuadToHtmlElement(quad, relativeTo, iframes);
+        if (htmlQuad) {
+            return htmlQuad;
+        }
+    }
+
+    if (relativeTo === node.ownerDocument.body) {
+        const relativeRect = relativeTo.getBoundingClientRect();
+        const scrollLeft = relativeTo.scrollLeft || 0;
+        const scrollTop = relativeTo.scrollTop || 0;
+        return new DOMQuad(
+            new DOMPoint(quad.p1.x - relativeRect.x + scrollLeft, quad.p1.y - relativeRect.y + scrollTop),
+            new DOMPoint(quad.p2.x - relativeRect.x + scrollLeft, quad.p2.y - relativeRect.y + scrollTop),
+            new DOMPoint(quad.p3.x - relativeRect.x + scrollLeft, quad.p3.y - relativeRect.y + scrollTop),
+            new DOMPoint(quad.p4.x - relativeRect.x + scrollLeft, quad.p4.y - relativeRect.y + scrollTop),
+        );
+    }
+
+    return convertQuadFromNode(relativeTo, quad, viewportRoot, { iframes });
+}
+
+function convertViewportQuadToHtmlElement(quad, relativeTo, iframes) {
+    const scale = getPositiveAxisAlignedViewportScale(relativeTo, iframes);
+    if (!scale) {
+        return null;
+    }
+
+    const relativeRect = relativeTo.getBoundingClientRect();
+    const scaleX = scale.x;
+    const scaleY = scale.y;
+    if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY) || Math.abs(scaleX) < 1e-10 || Math.abs(scaleY) < 1e-10) {
+        return null;
+    }
+
+    const scrollLeft = relativeTo.scrollLeft || 0;
+    const scrollTop = relativeTo.scrollTop || 0;
+    const convertPoint = (point) => new DOMPoint(
+        (point.x - relativeRect.x) / scaleX + scrollLeft,
+        (point.y - relativeRect.y) / scaleY + scrollTop,
+    );
+
+    return new DOMQuad(
+        convertPoint(quad.p1),
+        convertPoint(quad.p2),
+        convertPoint(quad.p3),
+        convertPoint(quad.p4),
+    );
+}
+
+function getPositiveAxisAlignedViewportScale(element, iframes) {
+    const win = element.ownerDocument.defaultView ?? window;
+    const scale = { x: 1, y: 1 };
+    let current = element;
+    while (current && current !== element.ownerDocument.documentElement) {
+        if (current instanceof win.Element) {
+            const style = getCachedComputedStyle(current);
+            const transformScale = getPositiveAxisAlignedTransformScale(style);
+            if (!transformScale) {
+                return null;
+            }
+            const zoom = getElementZoom(current);
+            scale.x *= transformScale.x * zoom;
+            scale.y *= transformScale.y * zoom;
+        }
+        current = getParentElementIncludingSlots(current, iframes);
+    }
+    return scale;
+}
+
+function getPositiveAxisAlignedTransformScale(style) {
+    if (style.perspective && style.perspective !== 'none') {
+        return null;
+    }
+    if (style.rotate && style.rotate !== 'none' && !isZeroAngleValue(style.rotate)) {
+        return null;
+    }
+    const individualScale = parsePositiveScaleValue(style.scale);
+    if (!individualScale) {
+        return null;
+    }
+
+    const transform = style.transform;
+    if (!transform || transform === 'none') {
+        return individualScale;
+    }
+
+    if (transform.startsWith('matrix3d(')) {
+        const values = parseCssMatrixValues(transform);
+        if (values?.length === 16
+            && values[0] > 0
+            && values[5] > 0
+            && Math.abs(values[1]) < 1e-10
+            && Math.abs(values[4]) < 1e-10
+            && Math.abs(values[3]) < 1e-10
+            && Math.abs(values[7]) < 1e-10
+            && Math.abs(values[11]) < 1e-10) {
+            return { x: individualScale.x * values[0], y: individualScale.y * values[5] };
+        }
+        return null;
+    }
+
+    if (transform.startsWith('matrix(')) {
+        const values = parseCssMatrixValues(transform);
+        if (values?.length === 6
+            && values[0] > 0
+            && values[3] > 0
+            && Math.abs(values[1]) < 1e-10
+            && Math.abs(values[2]) < 1e-10) {
+            return { x: individualScale.x * values[0], y: individualScale.y * values[3] };
+        }
+        return null;
+    }
+
+    return null;
+}
+
+function parsePositiveScaleValue(value) {
+    if (!value || value === 'none') {
+        return { x: 1, y: 1 };
+    }
+    const parts = value.split(/\s+/).map(part => parseFloat(part)).filter(Number.isFinite);
+    if (parts.length === 0 || parts[0] <= 0 || (parts[1] != null && parts[1] <= 0)) {
+        return null;
+    }
+    return { x: parts[0], y: parts[1] ?? parts[0] };
+}
+
+function parseCssMatrixValues(transform) {
+    const start = transform.indexOf('(');
+    const end = transform.lastIndexOf(')');
+    if (start < 0 || end <= start) {
+        return null;
+    }
+    const values = transform.slice(start + 1, end).split(',').map(value => parseFloat(value.trim()));
+    return values.every(Number.isFinite) ? values : null;
+}
+
+function isZeroAngleValue(value) {
+    const matches = value.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi);
+    if (!matches?.length) {
+        return false;
+    }
+    const angle = parseFloat(matches[matches.length - 1]);
+    return Number.isFinite(angle) && Math.abs(angle) < 1e-10;
+}
+
+function hasTransformedHtmlAncestor(node, relativeTo, iframes) {
+    const win = node.ownerDocument.defaultView ?? window;
+    let element = getParentElementIncludingSlots(node, iframes);
+    while (element && element !== relativeTo && element !== node.ownerDocument.documentElement) {
+        if (element instanceof win.HTMLElement) {
+            const css = getCachedComputedStyle(element);
+            if (transformProperties.some((value) => css[value] ? css[value] !== 'none' : false)) {
+                return true;
+            }
+        }
+        element = getParentElementIncludingSlots(element, iframes);
+    }
+    return false;
 }
 
 function toViewportRelativeDocumentElementQuad(quad, node, relativeTo, iframes) {
     if (relativeTo !== node.ownerDocument.documentElement) {
         return quad;
     }
-    if (isViewportFixedAnchoredNode(node, iframes)) {
-        return quad;
-    }
-
     const win = node.ownerDocument.defaultView ?? window;
     const scrollX = win.scrollX ?? node.ownerDocument.documentElement.scrollLeft ?? 0;
     const scrollY = win.scrollY ?? node.ownerDocument.documentElement.scrollTop ?? 0;
     if (scrollX === 0 && scrollY === 0) {
+        return quad;
+    }
+    if (isViewportFixedAnchoredNode(node, iframes)) {
         return quad;
     }
 
@@ -723,6 +938,30 @@ function isViewportFixedAnchoredNode(node, iframes) {
     return false;
 }
 
+function shouldResolveFixedPositionThroughViewport(node, relativeTo, iframes) {
+    const win = node.ownerDocument.defaultView ?? window;
+    let element = null;
+    if (node instanceof win.Text) {
+        element = getParentElementIncludingSlots(node, iframes);
+    } else if (node instanceof win.Element) {
+        element = node;
+    }
+
+    while (element && element !== node.ownerDocument.documentElement) {
+        const cs = getCachedComputedStyle(element);
+        if (cs.position === 'fixed') {
+            const fixedContainer = getNearestFixedContainingBlock(element, iframes);
+            return fixedContainer == null
+                || (fixedContainer !== relativeTo && !isFlatTreeInclusiveAncestor(relativeTo, fixedContainer));
+        }
+        if (element === relativeTo) {
+            break;
+        }
+        element = getParentElementIncludingSlots(element, iframes);
+    }
+
+    return false;
+}
 /**
  * Compute width/height for a Text node given an already-fetched bounding rect.
  * Extracted from getElementSize so getBoxQuads (FIX 7) can reuse the Range it
@@ -766,7 +1005,6 @@ function projectPoint(point, m) {
     const z = -(point.x * m.m13 + point.y * m.m23 + m.m43) / m.m33;
     return new DOMPoint(point.x, point.y, z, 1);
 }
-
 /**
 * convert a DOM-Point to 2D
 * @param {DOMPoint} point
@@ -777,7 +1015,6 @@ function as2DPoint(point) {
         point.y / point.w
     );
 }
-
 /**
 * @param {Node} node
 * @param {DOMMatrix=} matrix
@@ -814,14 +1051,20 @@ export function getElementSize(node, matrix) {
     return { width, height }
 }
 
-function getSvgBBoxScale(primaryRectSize, primaryBBoxSize, fallbackRectSize, fallbackBBoxSize) {
-    if (Math.abs(primaryBBoxSize) > 1e-10) {
-        return primaryRectSize / primaryBBoxSize;
+function getSvgVisualBox(node, bbox) {
+    const svgStyle = getCachedComputedStyle(node);
+    const strokeWidth = svgStyle.stroke !== 'none' ? parseFloat(svgStyle.strokeWidth) || 0 : 0;
+    if (strokeWidth <= 0) {
+        return bbox;
     }
-    if (Math.abs(fallbackBBoxSize) > 1e-10) {
-        return fallbackRectSize / fallbackBBoxSize;
-    }
-    return 1;
+
+    const strokeInflation = getSvgStrokeInflation(node, bbox, strokeWidth);
+    return new DOMRect(
+        bbox.x - strokeInflation.left,
+        bbox.y - strokeInflation.top,
+        bbox.width + strokeInflation.left + strokeInflation.right,
+        bbox.height + strokeInflation.top + strokeInflation.bottom,
+    );
 }
 
 function getSvgStrokeInflation(node, bbox, strokeWidth) {
@@ -852,7 +1095,6 @@ function getSvgStrokeInflation(node, bbox, strokeWidth) {
     const genericInflation = strokeWidth * 2;
     return { left: genericInflation, right: genericInflation, top: genericInflation, bottom: genericInflation };
 }
-
 /**
 * @param {Node} node
 * @param {boolean} includeScroll
@@ -967,6 +1209,21 @@ function getElementOffsetsInContainer(node, includeScroll, iframes) {
         return new DOMPoint(r1t.x - r2t.x, r1t.y - r2t.y);
     }
 }
+/**
+ * Apply a layout translation in the parent coordinate space. The common 2D
+ * case only changes e/f; 3D matrices still need the full homogeneous product.
+ * @param {DOMMatrix} matrix
+ * @param {number} x
+ * @param {number} y
+ */
+function preTranslateSelf(matrix, x, y) {
+    if (matrix.is2D && Number.isFinite(x) && Number.isFinite(y)) {
+        matrix.e += x;
+        matrix.f += y;
+    } else {
+        matrix.preMultiplySelf(new DOMMatrix().translateSelf(x, y));
+    }
+}
 
 /**
 * @param {Node} node
@@ -1007,17 +1264,13 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
         : getElementTransformWithZoom(actualElement, iframes, !excludeSelfZoom);
 
     /** @type {DOMMatrix } */
-    // FIX 2: Only use a non-identity starting matrix when the element itself has
-    //        a CSS transform. Most plain elements have identity, avoiding a multiply.
-    let originalElementAndAllParentsMultipliedMatrix = currentElementTransform.isIdentity
-        ? new DOMMatrix()
-        : currentElementTransform;
+    // The self-transform is already a fresh matrix, including the identity case.
+    let originalElementAndAllParentsMultipliedMatrix = currentElementTransform;
 
-    let perspectiveParentElement = getParentElementIncludingSlots(actualElement, iframes);
-    if (perspectiveParentElement) {
-        // FIX 5: Guard transformStyle read behind is2D — on a standard 2D page
-        //        the matrix is always 2D here so we skip the style read entirely.
-        if (!originalElementAndAllParentsMultipliedMatrix.is2D) {
+    // A 2D matrix needs no perspective-parent lookup or flattening.
+    if (!originalElementAndAllParentsMultipliedMatrix.is2D) {
+        const perspectiveParentElement = getParentElementIncludingSlots(actualElement, iframes);
+        if (perspectiveParentElement) {
             const s = getCachedComputedStyle(perspectiveParentElement);
             if (s.transformStyle !== 'preserve-3d') {
                 projectTo2D(originalElementAndAllParentsMultipliedMatrix);
@@ -1047,8 +1300,7 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
                     const t = offsetTopLeftPolyfill(actualElement, 'offsetTop');
                     // FIX 3: Skip zero-translation matrix allocations.
                     if (l !== 0 || t !== 0) {
-                        const mvMat = new DOMMatrix().translateSelf(l, t);
-                        originalElementAndAllParentsMultipliedMatrix = mvMat.multiplySelf(originalElementAndAllParentsMultipliedMatrix);
+                        preTranslateSelf(originalElementAndAllParentsMultipliedMatrix, l, t);
                     }
                     lastOffsetParent = slotOffsetParent;
                 }
@@ -1058,8 +1310,7 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
                 const offsets = getElementOffsetsInContainer(actualElement, actualElement !== node, iframes);
                 // FIX 3
                 if (offsets.x !== 0 || offsets.y !== 0) {
-                    const mvMat = new DOMMatrix().translateSelf(offsets.x, offsets.y);
-                    originalElementAndAllParentsMultipliedMatrix = mvMat.multiplySelf(originalElementAndAllParentsMultipliedMatrix);
+                    preTranslateSelf(originalElementAndAllParentsMultipliedMatrix, offsets.x, offsets.y);
                 }
             }
             /*
@@ -1089,8 +1340,7 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
                 const bb = actualElement.getBBox();
                 // FIX 3
                 if (bb.x !== 0 || bb.y !== 0) {
-                    const mvMat = new DOMMatrix().translateSelf(bb.x, bb.y);
-                    originalElementAndAllParentsMultipliedMatrix = mvMat.multiplySelf(originalElementAndAllParentsMultipliedMatrix);
+                    preTranslateSelf(originalElementAndAllParentsMultipliedMatrix, bb.x, bb.y);
                 }
                 originalElementAndAllParentsMultipliedMatrix = new DOMMatrix([ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f]).multiplySelf(originalElementAndAllParentsMultipliedMatrix);
                 parentElement = actualElement.ownerSVGElement;
@@ -1104,8 +1354,7 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
                     lastOffsetParent = actualElement.offsetParent;
                     // FIX 3
                     if (offsets.x !== 0 || offsets.y !== 0) {
-                        const mvMat = new DOMMatrix().translateSelf(offsets.x * zoom, offsets.y * zoom);
-                        originalElementAndAllParentsMultipliedMatrix = mvMat.multiplySelf(originalElementAndAllParentsMultipliedMatrix);
+                        preTranslateSelf(originalElementAndAllParentsMultipliedMatrix, offsets.x * zoom, offsets.y * zoom);
                     }
                 }
             } else {
@@ -1113,8 +1362,7 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
                 lastOffsetParent = null;
                 // FIX 3
                 if (offsets.x !== 0 || offsets.y !== 0) {
-                    const mvMat = new DOMMatrix().translateSelf(offsets.x, offsets.y);
-                    originalElementAndAllParentsMultipliedMatrix = mvMat.multiplySelf(originalElementAndAllParentsMultipliedMatrix);
+                    preTranslateSelf(originalElementAndAllParentsMultipliedMatrix, offsets.x, offsets.y);
                 }
             }
         }
@@ -1129,7 +1377,7 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
                     const ancOff = getElementOffsetsInContainer(parentElement, false, iframes);
                     // FIX 3
                     if (ancOff.x !== 0 || ancOff.y !== 0) {
-                        originalElementAndAllParentsMultipliedMatrix = new DOMMatrix().translate(-ancOff.x, -ancOff.y).multiply(originalElementAndAllParentsMultipliedMatrix);
+                        preTranslateSelf(originalElementAndAllParentsMultipliedMatrix, -ancOff.x, -ancOff.y);
                     }
                 }
                 // FIX 15: Do NOT subtract the scroll of documentElement (the viewport/window
@@ -1140,7 +1388,7 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
                 //         scroll container (e.g. an overflow:scroll div used as relativeTo).
                 const isViewportScrollContainer = parentElement === parentElement.ownerDocument.documentElement;
                 if (!isViewportScrollContainer && (parentElement.scrollTop || parentElement.scrollLeft))
-                    originalElementAndAllParentsMultipliedMatrix = new DOMMatrix().translate(-parentElement.scrollLeft, -parentElement.scrollTop).multiply(originalElementAndAllParentsMultipliedMatrix);
+                    preTranslateSelf(originalElementAndAllParentsMultipliedMatrix, -parentElement.scrollLeft, -parentElement.scrollTop);
 
                 const ancestorZoom = getElementZoomScaleTransform(parentElement);
                 if (!ancestorZoom.isIdentity)
@@ -1162,12 +1410,11 @@ export function getResultingTransformationBetweenElementAndAllAncestors(node, an
             parentElementMatrix = getElementTransformWithZoom(parentElement, iframes);
 
             if (!parentElementMatrix.isIdentity)
-                originalElementAndAllParentsMultipliedMatrix = parentElementMatrix.multiply(originalElementAndAllParentsMultipliedMatrix);
+                originalElementAndAllParentsMultipliedMatrix.preMultiplySelf(parentElementMatrix);
 
-            perspectiveParentElement = getParentElementIncludingSlots(parentElement, iframes);
-            if (perspectiveParentElement) {
-                // FIX 5: Skip transformStyle read when matrix is already 2D.
-                if (!originalElementAndAllParentsMultipliedMatrix.is2D) {
+            if (!originalElementAndAllParentsMultipliedMatrix.is2D) {
+                const perspectiveParentElement = getParentElementIncludingSlots(parentElement, iframes);
+                if (perspectiveParentElement) {
                     const s = getCachedComputedStyle(perspectiveParentElement);
                     if (s.transformStyle !== 'preserve-3d') {
                         projectTo2D(originalElementAndAllParentsMultipliedMatrix);
@@ -1331,7 +1578,6 @@ function getParentElementIncludingSlots(node, iframes) {
     }
     return node.parentElement;
 }
-
 /**
  * @param {Node} element
 * @param {HTMLIFrameElement[]=} iframes
@@ -1347,13 +1593,17 @@ export function getElementCombinedTransform(element, iframes) {
     //https://www.w3.org/TR/css-transforms-2/#ctm
     let s = getCachedComputedStyle(actualElement);
 
-    // FIX 10: Check hasTransform first — it's the most common non-identity case.
-    //         Reordering so the most frequent hit is evaluated first.
-    const hasTransform  = s.transform !== 'none' && !!s.transform;
-    const hasTranslate  = s.translate !== 'none' && !!s.translate;
-    const hasRotate     = s.rotate    !== 'none' && !!s.rotate;
-    const hasScale      = s.scale     !== 'none' && !!s.scale;
-    const hasOffsetPath = !!s.offsetPath && s.offsetPath !== 'none';
+    // Read each native computed-style property once on this hot path.
+    const transform = s.transform;
+    const translate = s.translate;
+    const rotate = s.rotate;
+    const scale = s.scale;
+    const offsetPath = s.offsetPath;
+    const hasTransform  = transform !== 'none' && !!transform;
+    const hasTranslate  = translate !== 'none' && !!translate;
+    const hasRotate     = rotate    !== 'none' && !!rotate;
+    const hasScale      = scale     !== 'none' && !!scale;
+    const hasOffsetPath = !!offsetPath && offsetPath !== 'none';
 
     if (!hasTransform && !hasTranslate && !hasRotate && !hasScale && !hasOffsetPath) {
         // FIX 1: Check parent perspective right here in the fast-path, so identity
@@ -1369,7 +1619,9 @@ export function getElementCombinedTransform(element, iframes) {
         return pt != null ? pt : new DOMMatrix();
     }
 
-    let m = new DOMMatrix();
+    // A plain CSS transform needs no identity matrix or initial multiply.
+    const onlyTransform = hasTransform && !hasTranslate && !hasRotate && !hasScale && !hasOffsetPath;
+    let m = onlyTransform ? new DOMMatrix(transform) : new DOMMatrix();
     const origin = s.transformOrigin.split(' ');
     const originX = parseFloat(origin[0]);
     const originY = parseFloat(origin[1]);
@@ -1378,10 +1630,9 @@ export function getElementCombinedTransform(element, iframes) {
     // FIX 11: Skip the origin wrap/unwrap entirely when origin is (0,0,0).
     //         Saves two DOMMatrix allocations and two multiply calls per element.
     const hasNonZeroOrigin = (originX !== 0 || originY !== 0 || originZ !== 0);
-    const mOri = hasNonZeroOrigin ? new DOMMatrix().translateSelf(originX, originY, originZ) : null;
 
     if (hasTranslate) {
-        let tr = s.translate;
+        let tr = translate;
         if (tr.includes('%')) {
             const v = tr.split(' ');
             const r = actualElement.getBoundingClientRect();
@@ -1394,21 +1645,28 @@ export function getElementCombinedTransform(element, iframes) {
         m.multiplySelf(new DOMMatrix('translate(' + tr.replaceAll(' ', ',') + ')'));
     }
     if (hasRotate) {
-        m.multiplySelf(new DOMMatrix('rotate(' + s.rotate.replaceAll(' ', ',') + ')'));
+        m.multiplySelf(new DOMMatrix('rotate(' + rotate.replaceAll(' ', ',') + ')'));
     }
     if (hasScale) {
-        m.multiplySelf(new DOMMatrix('scale(' + s.scale.replaceAll(' ', ',') + ')'));
+        m.multiplySelf(new DOMMatrix('scale(' + scale.replaceAll(' ', ',') + ')'));
     }
     if (hasOffsetPath) {
         m.multiplySelf(computeOffsetTransformMatrix(element));
     }
-    if (hasTransform) {
-        m.multiplySelf(new DOMMatrix(s.transform));
+    if (hasTransform && !onlyTransform) {
+        m.multiplySelf(new DOMMatrix(transform));
     }
 
     // FIX 11 (continued): Only wrap with origin if non-zero.
     if (hasNonZeroOrigin) {
-        m = mOri.multiply(m.multiplySelf(mOri.inverse()));
+        if (m.is2D && originZ === 0 && Number.isFinite(originX) && Number.isFinite(originY)) {
+            // T(origin) * M * T(-origin) changes only the 2D translation.
+            m.e += originX - m.a * originX - m.c * originY;
+            m.f += originY - m.b * originX - m.d * originY;
+        } else {
+            m = new DOMMatrix().translateSelf(originX, originY, originZ)
+                .multiplySelf(m).translateSelf(-originX, -originY, -originZ);
+        }
     }
 
     //@ts-ignore
@@ -1418,7 +1676,6 @@ export function getElementCombinedTransform(element, iframes) {
     }
     return m;
 }
-
 /**
 * project a DOM-Matrix to 2D (from firefox matrix.h)
 * @param {DOMMatrix} m
@@ -1449,7 +1706,6 @@ function projectTo2D(m) {
         m.m44 = 1.0;
     }
 }
-
 /**
 * @param {HTMLElement} element
 * @param {HTMLIFrameElement[]} iframes
@@ -2076,7 +2332,6 @@ function isElement(value) {
     const elType = value?.ownerDocument?.defaultView?.Element;
     return value instanceof Element || (elType != null && value instanceof elType);
 }
-
 /**
  *
  * @param {CSSStyleDeclaration} css
@@ -2152,7 +2407,6 @@ function offsetParentPolyfill(element) {
     }
     return null;
 }
-
 /**
  *
  * @param {*} element
@@ -2171,7 +2425,6 @@ function offsetTopLeftPolyfill(element, offsetTopOrLeft) {
 
     return value;
 }
-
 /**
 * @param {Element} element
 * @returns {boolean}
@@ -2193,7 +2446,6 @@ function createsFixedContainingBlock(element) {
     const willChange = cs.willChange || '';
     return /transform|perspective|filter|backdrop-filter/.test(willChange);
 }
-
 /**
 * @param {HTMLElement} element
 * @param {HTMLIFrameElement[]=} iframes

@@ -38,6 +38,43 @@ additionaly there are:
 
 wich are not needed with native boxQuadsApi, but in JS the calculations could take time, so we maybe need to cache them. But you need to manually clear the cache if you need refreshed values.
 
+Without `useCache()`, computed styles are reused only during one synchronous
+`getBoxQuads()` call. The next call reads fresh styles, including after DOM or CSS
+changes. This also benefits callers that measure both elements and text nodes,
+such as layout2vector.
+
+Use `useCache()` for repeated measurements of an unchanged layout and call
+`clearCache()` after changes to layout, styles, scrolling, or iframe mappings.
+Avoid keeping this cache across asynchronous extraction steps that temporarily
+insert text wrappers or pseudo-element replacements unless each mutation
+invalidates the cache.
+
+## Performance checks
+
+Run `npm run test:perf` to measure 840 elements and their text nodes in a nested,
+transformed scene. The JSON attachment includes uncached element and mixed-node
+passes, viewport-relative mixed passes, and cached mixed passes with both an
+empty cache and a populated cache. Cache invalidation happens outside the timed
+pass. Timings depend on the browser and machine; compare runs in the same environment.
+
+Set `POLYFILL_SOURCE_PATH` to another source file to benchmark a baseline with
+the same fixture and measurement code.
+
+For an alternating comparison of uncached ancestor-relative calls, set
+`POLYFILL_BASELINE_PATH` to a saved source file and run `npm run test:perf`.
+The comparison checks all element and text quad coordinates, then measures
+seven passes of each implementation after warmup, alternating their order.
+The JSON attachment includes individual samples, medians, and the speedup.
+
+Ancestor transform composition reuses the accumulating matrix and applies
+transform-origin translations directly, avoiding temporary matrices and an
+inverse for each transformed ancestor. These calculations remain fresh on
+every uncached call.
+
+For 2D matrices, layout translations and transform-origin adjustments update
+the translation components directly. Perspective and other 3D matrices retain
+the full homogeneous matrix calculation.
+
 # info
 gets the 4 transformed corner points of an Elment in DOM. Works only for HTMLElements. 
 Limited support for SVG and MathML, cause of missing offsetLeft & offsetTop-Properties on SVGElement and MathMLElement
