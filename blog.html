@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>The DOM has corners — a practical guide to getBoxQuads()</title>
+    <meta
+        name="description"
+        content="A practical guide to the CSSOM GeometryUtils API: accurate transformed geometry, coordinate conversion, real-world uses, live examples, and browser support."
+    >
+    <meta property="og:title" content="The DOM has corners">
+    <meta property="og:description" content="A practical guide to getBoxQuads(), transformed DOM geometry, and the GeometryUtils API.">
+    <meta property="og:type" content="article">
+    <meta name="twitter:card" content="summary">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=Newsreader:opsz,wght@6..72,500;6..72,650&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./blog.css">
+</head>
+<body>
+    <header class="site-header">
+        <a class="site-brand" href="./index.html" aria-label="getBoxQuads Polyfill home">
+            <span class="brand-symbol">GBQ</span>
+            <span>Geometry notes</span>
+        </a>
+        <nav aria-label="Primary navigation">
+            <a href="./index.html">Polyfill</a>
+            <a href="https://github.com/jogibear9988/getBoxQuadsPolyfill">Source ↗</a>
+        </nav>
+    </header>
+
+    <main>
+        <article>
+            <header class="article-hero">
+                <div class="hero-copy">
+                    <p class="kicker">CSSOM View · GeometryUtils</p>
+                    <h1>The DOM has corners.</h1>
+                    <p class="standfirst">
+                        <code>getBoundingClientRect()</code> gives you the axis-aligned rectangle that contains
+                        a transformed element. <code>getBoxQuads()</code> gives you its actual corners—preserving
+                        rotation, skew and orientation.
+                    </p>
+                    <div class="article-meta">
+                        <span>Jochen Kühner</span>
+                        <span>August 30, 2026</span>
+                        <span>9 min read</span>
+                    </div>
+                </div>
+
+                <figure class="hero-geometry" id="hero-geometry" aria-labelledby="hero-figure-caption">
+                    <div class="hero-grid-lines"></div>
+                    <div class="bounding-rect" id="hero-bounding-rect" aria-hidden="true"></div>
+                    <div class="hero-element" id="hero-element">DOM</div>
+                    <svg id="hero-quad-overlay" aria-hidden="true">
+                        <polygon></polygon>
+                        <g class="point"><circle r="7"></circle><text>p1</text></g>
+                        <g class="point"><circle r="7"></circle><text>p2</text></g>
+                        <g class="point"><circle r="7"></circle><text>p3</text></g>
+                        <g class="point"><circle r="7"></circle><text>p4</text></g>
+                    </svg>
+                    <div class="hero-controls" aria-label="Transform the DOM element">
+                        <label>rotate <input id="hero-rotation" type="range" min="-24" max="24" value="-14"></label>
+                        <label>skew <input id="hero-skew" type="range" min="-12" max="12" value="5"></label>
+                        <output id="hero-transform-output">rotate −14° · skew 5°</output>
+                    </div>
+                    <figcaption id="hero-figure-caption">
+                        Move the controls. Every corner is measured from the live element.
+                    </figcaption>
+                </figure>
+            </header>
+
+            <div class="article-layout">
+                <aside class="table-of-contents" aria-label="On this page">
+                    <p>On this page</p>
+                    <ol>
+                        <li><a href="#the-gap">The geometry gap</a></li>
+                        <li><a href="#the-api">What the API gives you</a></li>
+                        <li><a href="#selection-demo">Selection overlay</a></li>
+                        <li><a href="#coordinate-spaces">Coordinate spaces</a></li>
+                        <li><a href="#projects">Where it is useful</a></li>
+                        <li><a href="#browser-status">Browser progress</a></li>
+                    </ol>
+                </aside>
+
+                <div class="article-body">
+                    <section id="the-gap">
+                        <p class="opening">
+                            The web platform has always been excellent at laying things out, but surprisingly
+                            reluctant to tell us the exact geometry it produced. That becomes a problem the moment
+                            an interface needs to draw on top of the page instead of merely living inside it.
+                        </p>
+                        <p>
+                            Consider a visual editor. The selected component might sit inside three transformed
+                            ancestors, a scrolled container and an iframe. To draw a precise outline, resize handles
+                            or a connector, the editor needs the component’s real corners in a coordinate space it
+                            controls. An axis-aligned rectangle is no longer enough.
+                        </p>
+
+                        <div class="comparison" aria-label="Comparison of bounding rectangle and box quad">
+                            <div>
+                                <span class="comparison-label bad">Approximation</span>
+                                <h3><code>getBoundingClientRect()</code></h3>
+                                <p>Returns <code>x</code>, <code>y</code>, <code>width</code> and <code>height</code> for the smallest viewport-aligned rectangle around the result.</p>
+                            </div>
+                            <div>
+                                <span class="comparison-label good">Actual geometry</span>
+                                <h3><code>getBoxQuads()</code></h3>
+                                <p>Returns four ordered <code>DOMPoint</code>s for each CSS fragment, preserving rotation, skew, transforms and the chosen box edge.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="the-api">
+                        <p class="section-number">01</p>
+                        <h2>One method, four honest corners</h2>
+                        <p>
+                            <code>getBoxQuads()</code> is part of the CSSOM View
+                            <a href="https://drafts.csswg.org/cssom-view/#the-geometryutils-interface">GeometryUtils interface</a>.
+                            Call it on an <code>Element</code>, <code>Text</code> node or <code>Document</code>. It returns an array because
+                            one node can produce multiple fragments—for example, inline text wrapping across lines.
+                        </p>
+
+                        <div class="code-window" aria-label="Basic getBoxQuads example">
+                            <div class="code-toolbar"><span></span><span></span><span></span><b>selection-overlay.js</b></div>
+                            <pre><code>const [quad] = selectedElement.getBoxQuads({
+  box: "border",
+  relativeTo: overlayLayer,
+});
+
+const corners = [quad.p1, quad.p2, quad.p3, quad.p4];
+overlayPath.setAttribute(
+  "points",
+  corners.map(({ x, y }) =&gt; `${x},${y}`).join(" ")
+);</code></pre>
+                        </div>
+
+                        <div class="point-order">
+                            <div><b>p1</b><span>top left</span></div>
+                            <div><b>p2</b><span>top right</span></div>
+                            <div><b>p3</b><span>bottom right</span></div>
+                            <div><b>p4</b><span>bottom left</span></div>
+                        </div>
+
+                        <p>
+                            The <code>box</code> option chooses <code>margin</code>, <code>border</code>, <code>padding</code> or
+                            <code>content</code>. The <code>relativeTo</code> option is the quiet superpower: it asks the browser
+                            to express those points directly in another node’s coordinate system.
+                        </p>
+                    </section>
+
+                    <section id="selection-demo" class="wide-section">
+                        <div class="demo-intro">
+                            <div>
+                                <p class="section-number">02 · live example</p>
+                                <h2>A selection overlay that stays attached</h2>
+                            </div>
+                            <p>
+                                Change the selected card’s layout state. The orange outline is not a CSS border—it is
+                                an SVG polygon drawn from the four points returned by <code>getBoxQuads()</code>.
+                            </p>
+                        </div>
+
+                        <div class="selection-demo" id="selection-demo-stage">
+                            <div class="demo-topbar">
+                                <div class="demo-dots"><i></i><i></i><i></i></div>
+                                <div class="demo-tabs" role="group" aria-label="Choose a transform">
+                                    <button class="is-active" type="button" data-pose="tilt">Tilted</button>
+                                    <button type="button" data-pose="skew">Skewed</button>
+                                    <button type="button" data-pose="nested">Nested</button>
+                                </div>
+                                <output id="selection-coordinates" aria-live="polite">p1 0, 0</output>
+                            </div>
+                            <div class="design-canvas" id="design-canvas">
+                                <div class="canvas-ruler ruler-x"></div>
+                                <div class="canvas-ruler ruler-y"></div>
+                                <div class="artboard" id="artboard">
+                                    <p class="artboard-label">Campaign / Summer</p>
+                                    <div class="sample-card pose-tilt" id="sample-card">
+                                        <span class="sample-icon">↗</span>
+                                        <strong>Build beyond<br>the rectangle.</strong>
+                                        <small>Geometry that follows the design.</small>
+                                    </div>
+                                </div>
+                                <svg class="selection-overlay" id="selection-overlay" aria-hidden="true">
+                                    <polygon></polygon>
+                                    <line class="rotation-stem"></line>
+                                    <circle class="rotation-handle" r="7"></circle>
+                                    <g class="corner-handles">
+                                        <circle r="6"></circle><circle r="6"></circle>
+                                        <circle r="6"></circle><circle r="6"></circle>
+                                    </g>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <details class="demo-code">
+                            <summary>See the essential code</summary>
+                            <pre><code>const [quad] = card.getBoxQuads({
+  box: "border",
+  relativeTo: canvas,
+});
+
+drawSelection([quad.p1, quad.p2, quad.p3, quad.p4]);</code></pre>
+                        </details>
+                    </section>
+
+                    <section id="coordinate-spaces">
+                        <p class="section-number">03</p>
+                        <h2>Coordinate conversion, without matrix archaeology</h2>
+                        <p>
+                            The rest of GeometryUtils solves the inverse problem: you already have a point, rectangle
+                            or quad, but it belongs to the wrong node. The conversion methods move that geometry from
+                            one local coordinate system into another while accounting for the transforms between them.
+                        </p>
+
+                        <ul class="api-cards">
+                            <li><code>convertPointFromNode()</code><span>Map a cursor, anchor or handle.</span></li>
+                            <li><code>convertRectFromNode()</code><span>Move a rectangular region between nodes.</span></li>
+                            <li><code>convertQuadFromNode()</code><span>Preserve all four corners across spaces.</span></li>
+                        </ul>
+
+                        <figure class="point-conversion" id="point-conversion">
+                            <div class="conversion-bar">
+                                <span>convertPointFromNode()</span>
+                                <output id="conversion-equation">local (140, 110) → workbench (0, 0)</output>
+                            </div>
+                            <div class="conversion-workbench" id="conversion-workbench">
+                                <div class="conversion-column">
+                                    <div class="conversion-label"><b>1</b><span>Click local coordinates</span></div>
+                                    <button class="source-pad" id="source-pad" type="button" aria-label="Click to choose a point in the source coordinate space">
+                                        <span class="axis-label axis-x">x</span>
+                                        <span class="axis-label axis-y">y</span>
+                                        <span class="coordinate-marker source-marker" id="source-marker"></span>
+                                    </button>
+                                    <output class="coordinate-readout" id="source-readout">local x 140 · y 110</output>
+                                </div>
+                                <div class="conversion-operator" aria-hidden="true">
+                                    <span>convert</span><i>→</i>
+                                </div>
+                                <div class="conversion-column target-column">
+                                    <div class="conversion-label"><b>2</b><span>Click transformed space</span></div>
+                                    <div class="target-pad-wrap">
+                                        <button class="target-pad" id="target-pad" type="button" aria-label="Click to choose a point in the transformed coordinate space">
+                                            <span class="axis-label axis-x">x′</span>
+                                            <span class="axis-label axis-y">y′</span>
+                                        </button>
+                                    </div>
+                                    <output class="coordinate-readout" id="target-readout">workbench x 0 · y 0</output>
+                                </div>
+                                <span class="coordinate-marker target-marker" id="target-marker" aria-hidden="true"></span>
+                            </div>
+                            <figcaption>
+                                Click either grid. The API projects local coordinates onto the transformed element and converts transformed clicks back into local coordinates.
+                            </figcaption>
+                        </figure>
+
+                        <div class="code-window conversion-code" aria-label="Interactive convertPointFromNode example">
+                            <div class="code-toolbar"><span></span><span></span><span></span><b>point-conversion.js</b></div>
+                            <pre><code>// local → workbench: place the transformed marker
+const pointOnWorkbench = workbench.convertPointFromNode(
+  localPoint,
+  transformedSpace,
+);
+
+// workbench → local: handle a click on the transformed grid
+const localPoint = transformedSpace.convertPointFromNode(
+  clickOnWorkbench,
+  workbench,
+);</code></pre>
+                        </div>
+                    </section>
+
+                    <aside class="pull-quote">
+                        <p>When geometry is a product feature, “almost aligned” is simply another name for broken.</p>
+                    </aside>
+
+                    <section id="projects">
+                        <p class="section-number">04</p>
+                        <h2>Where precise DOM geometry earns its keep</h2>
+                        <p>
+                            This is not only a low-level browser curiosity. It is the missing primitive behind a
+                            broad family of interfaces that must understand the page visually.
+                        </p>
+
+                        <div class="use-grid">
+                            <div><span>01</span><h3>Visual editors</h3><p>Selection outlines, resize handles, snapping guides and drop zones on transformed components.</p></div>
+                            <div><span>02</span><h3>Diagramming</h3><p>Connectors that meet the actual edge of a node instead of its viewport-aligned bounding box.</p></div>
+                            <div><span>03</span><h3>Inspection tools</h3><p>Devtools overlays, measurement labels and geometry visualizers that agree with what users see.</p></div>
+                            <div><span>04</span><h3>Export pipelines</h3><p>Accurate DOM-to-vector conversion for PDF, SVG, DXF and other geometry-first formats.</p></div>
+                        </div>
+
+                        <h3 class="projects-heading">Already used in practice</h3>
+                        <div class="project-list">
+                            <a href="https://github.com/node-projects/web-component-designer">
+                                <span class="project-index">A</span>
+                                <span><strong>Web Component Designer</strong><small>A visual HTML and Web Component designer that needs accurate overlays and interaction geometry.</small></span>
+                                <b>GitHub ↗</b>
+                            </a>
+                            <a href="https://www.npmjs.com/package/@node-projects/layout2vector">
+                                <span class="project-index">B</span>
+                                <span><strong>@node-projects/layout2vector</strong><small>Converts live DOM layouts to DXF, PDF, PNG and SVG, using box quads to preserve CSS transforms.</small></span>
+                                <b>npm ↗</b>
+                            </a>
+                            <a href="https://node-projects.github.io/ProjectVisBug2/">
+                                <span class="project-index">C</span>
+                                <span><strong>ProjectVisBug2</strong><small>An in-page design and inspection tool whose overlays benefit directly from accurate transformed element geometry.</small></span>
+                                <b>Open project ↗</b>
+                            </a>
+                        </div>
+                    </section>
+
+                    <section id="using-today">
+                        <p class="section-number">05</p>
+                        <h2>Using it today</h2>
+                        <p>
+                            Until native implementations are consistently enabled across engines, feature detection
+                            plus a polyfill is the pragmatic route. The polyfill adds the GeometryUtils methods to
+                            <code>Node</code> and keeps application code close to the standard API.
+                        </p>
+
+                        <div class="code-window" aria-label="Install and use the getBoxQuads polyfill">
+                            <div class="code-toolbar"><span></span><span></span><span></span><b>npm</b></div>
+                            <pre><code>npm install get-box-quads-polyfill
+
+import { addPolyfill } from "get-box-quads-polyfill";
+
+if (!("getBoxQuads" in Element.prototype)) {
+  addPolyfill(window);
+}
+
+const quads = element.getBoxQuads({
+  box: "border",
+  relativeTo: document.body,
+});</code></pre>
+                        </div>
+
+                        <p class="technical-note">
+                            A polyfill can reconstruct only the geometry JavaScript is allowed to observe. This one
+                            focuses on HTML and has limited SVG and MathML support because some nodes do not expose
+                            layout properties such as <code>offsetLeft</code> and <code>offsetTop</code>. Shadow DOM adds
+                            similar hard boundaries: open roots and common slotting cases can be handled, but closed or
+                            otherwise inaccessible trees—and browser-internal layout details across those boundaries—
+                            cannot be recovered reliably from page script. Those are platform limitations, not missing
+                            matrix math. For repeated measurements the polyfill also provides an optional cache; clear
+                            it whenever layout changes.
+                        </p>
+                    </section>
+
+                    <section id="browser-status" class="browser-section">
+                        <p class="section-number">06 · ecosystem update</p>
+                        <h2>The engines are catching up</h2>
+                        <p>
+                            The interesting story in 2026 is no longer whether this API is implementable. Multiple
+                            engines now have working implementations; the remaining work is review, performance,
+                            interoperability and the decision to expose it broadly.
+                        </p>
+
+                        <div class="browser-timeline">
+                            <article>
+                                <span class="engine-dot firefox"></span>
+                                <div><h3>Firefox</h3><p>Mozilla has long had a native implementation. Public exposure has historically been preference-gated, and those preferences were switched off again in Nightly in 2026 while cross-engine interest develops.</p></div>
+                                <a href="https://bugzilla.mozilla.org/show_bug.cgi?id=2026051">Status ↗</a>
+                            </article>
+                            <article>
+                                <span class="engine-dot chrome"></span>
+                                <div><h3>Chrome / Chromium</h3><p>The GeometryUtils implementation landed in Chromium in August 2026. It is currently available behind Chrome’s “Experimental Web Platform features” flag.</p></div>
+                                <div class="browser-links"><a href="https://chromium-review.googlesource.com/c/chromium/src/+/8039580">Implementation ↗</a><a href="chrome://flags/#enable-experimental-web-platform-features">Open flag ↗</a></div>
+                            </article>
+                            <article>
+                                <span class="engine-dot safari"></span>
+                                <div><h3>Safari / WebKit</h3><p>A draft WebKit pull request implements GeometryUtils for <code>Document</code>, <code>Element</code> and <code>Text</code>, with CSS box selection and relative coordinate spaces.</p></div>
+                                <a href="https://github.com/WebKit/WebKit/pull/71448">WebKit PR #71448 ↗</a>
+                            </article>
+                            <article>
+                                <span class="engine-dot ladybird"></span>
+                                <div><h3>Ladybird</h3><p>There is also a working LibWeb implementation covering the same core GeometryUtils surface—a useful sign that the model transfers beyond the established engines.</p></div>
+                                <a href="https://github.com/jogibear9988/ladybird/commit/356386d8c4dab646f84f9d85bd1e6e677d69102f">Implementation ↗</a>
+                            </article>
+                        </div>
+
+                        <aside class="performance-note">
+                            <span>Performance work</span>
+                            <p>
+                                Native geometry reads can synchronize style and layout, so implementation quality
+                                matters as much as API shape. A follow-up Chromium patch keeps contained style
+                                traversal roots precise and reports a <strong>2.63×</strong> improvement in its targeted
+                                arm64 workload.
+                            </p>
+                            <a href="https://chromium-review.googlesource.com/c/chromium/src/+/8223544">Read the Chromium patch ↗</a>
+                        </aside>
+                    </section>
+
+                    <section class="closing">
+                        <p class="section-number">07</p>
+                        <h2>A small API with a large surface area</h2>
+                        <p>
+                            <code>getBoxQuads()</code> does one humble thing: it exposes geometry the browser has
+                            already calculated. But that honest set of points unlocks editors, overlays, inspectors,
+                            export tools and interactions that otherwise require brittle walks through CSS transforms.
+                        </p>
+                        <p>
+                            The four corners were always there. The web platform is finally giving them names.
+                        </p>
+                        <div class="closing-actions">
+                            <a class="primary-action" href="./index.html">Try the polyfill</a>
+                            <a href="https://drafts.csswg.org/cssom-view/#the-geometryutils-interface">Read the specification ↗</a>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </article>
+    </main>
+
+    <footer>
+        <span>getBoxQuads Polyfill</span>
+        <span>Geometry belongs to everyone.</span>
+        <a href="https://github.com/jogibear9988/getBoxQuadsPolyfill">MIT · GitHub ↗</a>
+    </footer>
+
+    <script type="module" src="./blog.js"></script>
+</body>
+</html>
